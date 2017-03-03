@@ -92,16 +92,20 @@
 #define	PI_MODEL_3		 8
 #define	PI_MODEL_ZERO		 9
 #define	PI_MODEL_CM3		10
+#define PI_MODEL_FIREFLY_RK3399    0x80
 
 #define	PI_VERSION_1		0
 #define	PI_VERSION_1_1		1
 #define	PI_VERSION_1_2		2
 #define	PI_VERSION_2		3
 
+#define	PI_VERSION_FIREFLY	0x10
+
 #define	PI_MAKER_SONY		0
 #define	PI_MAKER_EGOMAN		1
 #define	PI_MAKER_EMBEST		2
 #define	PI_MAKER_UNKNOWN	3
+#define	PI_MAKER_FIREFLY    0x10
 
 extern const char *piModelNames    [16] ;
 extern const char *piRevisionNames [16] ;

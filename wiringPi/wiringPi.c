@@ -75,6 +75,7 @@
 #include "softTone.h"
 
 #include "wiringPi.h"
+#include "wiringPi_fireflyrk3399.h"
 #include "../version.h"
 
 // Environment Variables
@@ -89,6 +90,7 @@
 
 #define	PI_GPIO_MASK	(0xFFFFFFC0)
 
+static int g_PI_Model = 0;
 struct wiringPiNodeStruct *wiringPiNodes = NULL ;
 
 // BCM Magic
@@ -212,74 +214,74 @@ static volatile unsigned int piGpioBase = 0 ;
 
 const char *piModelNames [16] =
 {
-  "Model A",	//  0
-  "Model B",	//  1
-  "Model A+",	//  2
-  "Model B+",	//  3
-  "Pi 2",	//  4
-  "Alpha",	//  5
-  "CM",		//  6
-  "Unknown07",	// 07
-  "Pi 3",	// 08
-  "Pi Zero",	// 09
-  "CM3",	// 10
-  "Unknown11",	// 11
-  "Unknown12",	// 12
-  "Unknown13",	// 13
-  "Unknown14",	// 14
-  "Unknown15",	// 15
+    "Model A",	//  0
+    "Model B",	//  1
+    "Model A+",	//  2
+    "Model B+",	//  3
+    "Pi 2",	//  4
+    "Alpha",	//  5
+    "CM",		//  6
+    "Unknown07",	// 07
+    "Pi 3",	// 08
+    "Pi Zero",	// 09
+    "CM3",	// 10
+    "Unknown11",	// 11
+    "Unknown12",	// 12
+    "Unknown13",	// 13
+    "Unknown14",	// 14
+    "Unknown15",	// 15
 } ;
 
 const char *piRevisionNames [16] =
 {
-  "00",
-  "01",
-  "02",
-  "03",
-  "04",
-  "05",
-  "06",
-  "07",
-  "08",
-  "09",
-  "10",
-  "11",
-  "12",
-  "13",
-  "14",
-  "15",
+    "00",
+    "01",
+    "02",
+    "03",
+    "04",
+    "05",
+    "06",
+    "07",
+    "08",
+    "09",
+    "10",
+    "11",
+    "12",
+    "13",
+    "14",
+    "15",
 } ;
 
 const char *piMakerNames [16] =
 {
-  "Sony",	//	 0
-  "Egoman",	//	 1
-  "Embest",	//	 2
-  "Unknown",	//	 3
-  "Embest",	//	 4
-  "Unknown05",	//	 5
-  "Unknown06",	//	 6
-  "Unknown07",	//	 7
-  "Unknown08",	//	 8
-  "Unknown09",	//	 9
-  "Unknown10",	//	10
-  "Unknown11",	//	11
-  "Unknown12",	//	12
-  "Unknown13",	//	13
-  "Unknown14",	//	14
-  "Unknown15",	//	15
+    "Sony",	//	 0
+    "Egoman",	//	 1
+    "Embest",	//	 2
+    "Unknown",	//	 3
+    "Embest",	//	 4
+    "Unknown05",	//	 5
+    "Unknown06",	//	 6
+    "Unknown07",	//	 7
+    "Unknown08",	//	 8
+    "Unknown09",	//	 9
+    "Unknown10",	//	10
+    "Unknown11",	//	11
+    "Unknown12",	//	12
+    "Unknown13",	//	13
+    "Unknown14",	//	14
+    "Unknown15",	//	15
 } ;
 
 const int piMemorySize [8] =
 {
-   256,		//	 0
-   512,		//	 1
-  1024,		//	 2
-     0,		//	 3
-     0,		//	 4
-     0,		//	 5
-     0,		//	 6
-     0,		//	 7
+    256,		//	 0
+    512,		//	 1
+    1024,		//	 2
+    0,		//	 3
+    0,		//	 4
+    0,		//	 5
+    0,		//	 6
+    0,		//	 7
 } ;
 
 // Time for easy calculations
@@ -306,10 +308,10 @@ int wiringPiTryGpioMem  = FALSE ;
 
 static int sysFds [64] =
 {
-  -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-  -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-  -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-  -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
 } ;
 
 // ISR Data
@@ -331,37 +333,37 @@ static int *pinToGpio ;
 
 static int pinToGpioR1 [64] =
 {
-  17, 18, 21, 22, 23, 24, 25, 4,	// From the Original Wiki - GPIO 0 through 7:	wpi  0 -  7
-   0,  1,				// I2C  - SDA1, SCL1				wpi  8 -  9
-   8,  7,				// SPI  - CE1, CE0				wpi 10 - 11
-  10,  9, 11, 				// SPI  - MOSI, MISO, SCLK			wpi 12 - 14
-  14, 15,				// UART - Tx, Rx				wpi 15 - 16
+    17, 18, 21, 22, 23, 24, 25, 4,	// From the Original Wiki - GPIO 0 through 7:	wpi  0 -  7
+    0,  1,				// I2C  - SDA1, SCL1				wpi  8 -  9
+    8,  7,				// SPI  - CE1, CE0				wpi 10 - 11
+    10,  9, 11, 				// SPI  - MOSI, MISO, SCLK			wpi 12 - 14
+    14, 15,				// UART - Tx, Rx				wpi 15 - 16
 
-// Padding:
+    // Padding:
 
-      -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,	// ... 31
-  -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,	// ... 47
-  -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,	// ... 63
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,	// ... 31
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,	// ... 47
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,	// ... 63
 } ;
 
 // Revision 2:
 
 static int pinToGpioR2 [64] =
 {
-  17, 18, 27, 22, 23, 24, 25, 4,	// From the Original Wiki - GPIO 0 through 7:	wpi  0 -  7
-   2,  3,				// I2C  - SDA0, SCL0				wpi  8 -  9
-   8,  7,				// SPI  - CE1, CE0				wpi 10 - 11
-  10,  9, 11, 				// SPI  - MOSI, MISO, SCLK			wpi 12 - 14
-  14, 15,				// UART - Tx, Rx				wpi 15 - 16
-  28, 29, 30, 31,			// Rev 2: New GPIOs 8 though 11			wpi 17 - 20
-   5,  6, 13, 19, 26,			// B+						wpi 21, 22, 23, 24, 25
-  12, 16, 20, 21,			// B+						wpi 26, 27, 28, 29
-   0,  1,				// B+						wpi 30, 31
+    17, 18, 27, 22, 23, 24, 25, 4,	// From the Original Wiki - GPIO 0 through 7:	wpi  0 -  7
+    2,  3,				// I2C  - SDA0, SCL0				wpi  8 -  9
+    8,  7,				// SPI  - CE1, CE0				wpi 10 - 11
+    10,  9, 11, 				// SPI  - MOSI, MISO, SCLK			wpi 12 - 14
+    14, 15,				// UART - Tx, Rx				wpi 15 - 16
+    28, 29, 30, 31,			// Rev 2: New GPIOs 8 though 11			wpi 17 - 20
+    5,  6, 13, 19, 26,			// B+						wpi 21, 22, 23, 24, 25
+    12, 16, 20, 21,			// B+						wpi 26, 27, 28, 29
+    0,  1,				// B+						wpi 30, 31
 
-// Padding:
+    // Padding:
 
-  -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,	// ... 47
-  -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,	// ... 63
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,	// ... 47
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,	// ... 63
 } ;
 
 
@@ -374,66 +376,66 @@ static int *physToGpio ;
 
 static int physToGpioR1 [64] =
 {
-  -1,		// 0
-  -1, -1,	// 1, 2
-   0, -1,
-   1, -1,
-   4, 14,
-  -1, 15,
-  17, 18,
-  21, -1,
-  22, 23,
-  -1, 24,
-  10, -1,
-   9, 25,
-  11,  8,
-  -1,  7,	// 25, 26
+    -1,		// 0
+    -1, -1,	// 1, 2
+    0, -1,
+    1, -1,
+    4, 14,
+    -1, 15,
+    17, 18,
+    21, -1,
+    22, 23,
+    -1, 24,
+    10, -1,
+    9, 25,
+    11,  8,
+    -1,  7,	// 25, 26
 
-                                              -1, -1, -1, -1, -1,	// ... 31
-  -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,	// ... 47
-  -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,	// ... 63
+    -1, -1, -1, -1, -1,	// ... 31
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,	// ... 47
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,	// ... 63
 } ;
 
 static int physToGpioR2 [64] =
 {
-  -1,		// 0
-  -1, -1,	// 1, 2
-   2, -1,
-   3, -1,
-   4, 14,
-  -1, 15,
-  17, 18,
-  27, -1,
-  22, 23,
-  -1, 24,
-  10, -1,
-   9, 25,
-  11,  8,
-  -1,  7,	// 25, 26
+    -1,		// 0
+    -1, -1,	// 1, 2
+    2, -1,
+    3, -1,
+    4, 14,
+    -1, 15,
+    17, 18,
+    27, -1,
+    22, 23,
+    -1, 24,
+    10, -1,
+    9, 25,
+    11,  8,
+    -1,  7,	// 25, 26
 
-// B+
+    // B+
 
-   0,  1,
-   5, -1,
-   6, 12,
-  13, -1,
-  19, 16,
-  26, 20,
-  -1, 21,
+    0,  1,
+    5, -1,
+    6, 12,
+    13, -1,
+    19, 16,
+    26, 20,
+    -1, 21,
 
-// the P5 connector on the Rev 2 boards:
+    // the P5 connector on the Rev 2 boards:
 
-  -1, -1,
-  -1, -1,
-  -1, -1,
-  -1, -1,
-  -1, -1,
-  28, 29,
-  30, 31,
-  -1, -1,
-  -1, -1,
-  -1, -1,
-  -1, -1,
+    -1, -1,
+    -1, -1,
+    -1, -1,
+    -1, -1,
+    -1, -1,
+    28, 29,
+    30, 31,
+    -1, -1,
+    -1, -1,
+    -1, -1,
+    -1, -1,
 } ;
 
 // gpioToGPFSEL:
@@ -443,12 +445,12 @@ static int physToGpioR2 [64] =
 
 static uint8_t gpioToGPFSEL [] =
 {
-  0,0,0,0,0,0,0,0,0,0,
-  1,1,1,1,1,1,1,1,1,1,
-  2,2,2,2,2,2,2,2,2,2,
-  3,3,3,3,3,3,3,3,3,3,
-  4,4,4,4,4,4,4,4,4,4,
-  5,5,5,5,5,5,5,5,5,5,
+    0,0,0,0,0,0,0,0,0,0,
+    1,1,1,1,1,1,1,1,1,1,
+    2,2,2,2,2,2,2,2,2,2,
+    3,3,3,3,3,3,3,3,3,3,
+    4,4,4,4,4,4,4,4,4,4,
+    5,5,5,5,5,5,5,5,5,5,
 } ;
 
 
@@ -457,12 +459,12 @@ static uint8_t gpioToGPFSEL [] =
 
 static uint8_t gpioToShift [] =
 {
-  0,3,6,9,12,15,18,21,24,27,
-  0,3,6,9,12,15,18,21,24,27,
-  0,3,6,9,12,15,18,21,24,27,
-  0,3,6,9,12,15,18,21,24,27,
-  0,3,6,9,12,15,18,21,24,27,
-  0,3,6,9,12,15,18,21,24,27,
+    0,3,6,9,12,15,18,21,24,27,
+    0,3,6,9,12,15,18,21,24,27,
+    0,3,6,9,12,15,18,21,24,27,
+    0,3,6,9,12,15,18,21,24,27,
+    0,3,6,9,12,15,18,21,24,27,
+    0,3,6,9,12,15,18,21,24,27,
 } ;
 
 
@@ -471,8 +473,8 @@ static uint8_t gpioToShift [] =
 
 static uint8_t gpioToGPSET [] =
 {
-   7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-   8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+    7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+    8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
 } ;
 
 // gpioToGPCLR:
@@ -480,8 +482,8 @@ static uint8_t gpioToGPSET [] =
 
 static uint8_t gpioToGPCLR [] =
 {
-  10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,
-  11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,
+    10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,
+    11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,
 } ;
 
 
@@ -490,8 +492,8 @@ static uint8_t gpioToGPCLR [] =
 
 static uint8_t gpioToGPLEV [] =
 {
-  13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,
-  14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,
+    13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,
+    14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,
 } ;
 
 
@@ -501,8 +503,8 @@ static uint8_t gpioToGPLEV [] =
 
 static uint8_t gpioToEDS [] =
 {
-  16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,
-  17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,
+    16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,
+    17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,17,
 } ;
 
 // gpioToREN
@@ -510,8 +512,8 @@ static uint8_t gpioToEDS [] =
 
 static uint8_t gpioToREN [] =
 {
-  19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,
-  20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,
+    19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,19,
+    20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,
 } ;
 
 // gpioToFEN
@@ -519,8 +521,8 @@ static uint8_t gpioToREN [] =
 
 static uint8_t gpioToFEN [] =
 {
-  22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,
-  23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,
+    22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,22,
+    23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,23,
 } ;
 #endif
 
@@ -535,8 +537,8 @@ static uint8_t gpioToFEN [] =
 
 static uint8_t gpioToPUDCLK [] =
 {
-  38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,
-  39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,
+    38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,
+    39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,
 } ;
 
 
@@ -545,14 +547,14 @@ static uint8_t gpioToPUDCLK [] =
 
 static uint8_t gpioToPwmALT [] =
 {
-          0,         0,         0,         0,         0,         0,         0,         0,	//  0 ->  7
-          0,         0,         0,         0, FSEL_ALT0, FSEL_ALT0,         0,         0, 	//  8 -> 15
-          0,         0, FSEL_ALT5, FSEL_ALT5,         0,         0,         0,         0, 	// 16 -> 23
-          0,         0,         0,         0,         0,         0,         0,         0,	// 24 -> 31
-          0,         0,         0,         0,         0,         0,         0,         0,	// 32 -> 39
-  FSEL_ALT0, FSEL_ALT0,         0,         0,         0, FSEL_ALT0,         0,         0,	// 40 -> 47
-          0,         0,         0,         0,         0,         0,         0,         0,	// 48 -> 55
-          0,         0,         0,         0,         0,         0,         0,         0,	// 56 -> 63
+    0,         0,         0,         0,         0,         0,         0,         0,	//  0 ->  7
+    0,         0,         0,         0, FSEL_ALT0, FSEL_ALT0,         0,         0, 	//  8 -> 15
+    0,         0, FSEL_ALT5, FSEL_ALT5,         0,         0,         0,         0, 	// 16 -> 23
+    0,         0,         0,         0,         0,         0,         0,         0,	// 24 -> 31
+    0,         0,         0,         0,         0,         0,         0,         0,	// 32 -> 39
+    FSEL_ALT0, FSEL_ALT0,         0,         0,         0, FSEL_ALT0,         0,         0,	// 40 -> 47
+    0,         0,         0,         0,         0,         0,         0,         0,	// 48 -> 55
+    0,         0,         0,         0,         0,         0,         0,         0,	// 56 -> 63
 } ;
 
 
@@ -561,14 +563,14 @@ static uint8_t gpioToPwmALT [] =
 
 static uint8_t gpioToPwmPort [] =
 {
-          0,         0,         0,         0,         0,         0,         0,         0,	//  0 ->  7
-          0,         0,         0,         0, PWM0_DATA, PWM1_DATA,         0,         0, 	//  8 -> 15
-          0,         0, PWM0_DATA, PWM1_DATA,         0,         0,         0,         0, 	// 16 -> 23
-          0,         0,         0,         0,         0,         0,         0,         0,	// 24 -> 31
-          0,         0,         0,         0,         0,         0,         0,         0,	// 32 -> 39
-  PWM0_DATA, PWM1_DATA,         0,         0,         0, PWM1_DATA,         0,         0,	// 40 -> 47
-          0,         0,         0,         0,         0,         0,         0,         0,	// 48 -> 55
-          0,         0,         0,         0,         0,         0,         0,         0,	// 56 -> 63
+    0,         0,         0,         0,         0,         0,         0,         0,	//  0 ->  7
+    0,         0,         0,         0, PWM0_DATA, PWM1_DATA,         0,         0, 	//  8 -> 15
+    0,         0, PWM0_DATA, PWM1_DATA,         0,         0,         0,         0, 	// 16 -> 23
+    0,         0,         0,         0,         0,         0,         0,         0,	// 24 -> 31
+    0,         0,         0,         0,         0,         0,         0,         0,	// 32 -> 39
+    PWM0_DATA, PWM1_DATA,         0,         0,         0, PWM1_DATA,         0,         0,	// 40 -> 47
+    0,         0,         0,         0,         0,         0,         0,         0,	// 48 -> 55
+    0,         0,         0,         0,         0,         0,         0,         0,	// 56 -> 63
 
 } ;
 
@@ -584,14 +586,14 @@ static uint8_t gpioToPwmPort [] =
 
 static uint8_t gpioToGpClkALT0 [] =
 {
-          0,         0,         0,         0, FSEL_ALT0, FSEL_ALT0, FSEL_ALT0,         0,	//  0 ->  7
-          0,         0,         0,         0,         0,         0,         0,         0, 	//  8 -> 15
-          0,         0,         0,         0, FSEL_ALT5, FSEL_ALT5,         0,         0, 	// 16 -> 23
-          0,         0,         0,         0,         0,         0,         0,         0,	// 24 -> 31
-  FSEL_ALT0,         0, FSEL_ALT0,         0,         0,         0,         0,         0,	// 32 -> 39
-          0,         0, FSEL_ALT0, FSEL_ALT0, FSEL_ALT0,         0,         0,         0,	// 40 -> 47
-          0,         0,         0,         0,         0,         0,         0,         0,	// 48 -> 55
-          0,         0,         0,         0,         0,         0,         0,         0,	// 56 -> 63
+    0,         0,         0,         0, FSEL_ALT0, FSEL_ALT0, FSEL_ALT0,         0,	//  0 ->  7
+    0,         0,         0,         0,         0,         0,         0,         0, 	//  8 -> 15
+    0,         0,         0,         0, FSEL_ALT5, FSEL_ALT5,         0,         0, 	// 16 -> 23
+    0,         0,         0,         0,         0,         0,         0,         0,	// 24 -> 31
+    FSEL_ALT0,         0, FSEL_ALT0,         0,         0,         0,         0,         0,	// 32 -> 39
+    0,         0, FSEL_ALT0, FSEL_ALT0, FSEL_ALT0,         0,         0,         0,	// 40 -> 47
+    0,         0,         0,         0,         0,         0,         0,         0,	// 48 -> 55
+    0,         0,         0,         0,         0,         0,         0,         0,	// 56 -> 63
 } ;
 
 // gpioToClk:
@@ -599,26 +601,26 @@ static uint8_t gpioToGpClkALT0 [] =
 
 static uint8_t gpioToClkCon [] =
 {
-         -1,        -1,        -1,        -1,        28,        30,        32,        -1,	//  0 ->  7
-         -1,        -1,        -1,        -1,        -1,        -1,        -1,        -1, 	//  8 -> 15
-         -1,        -1,        -1,        -1,        28,        30,        -1,        -1, 	// 16 -> 23
-         -1,        -1,        -1,        -1,        -1,        -1,        -1,        -1,	// 24 -> 31
-         28,        -1,        28,        -1,        -1,        -1,        -1,        -1,	// 32 -> 39
-         -1,        -1,        28,        30,        28,        -1,        -1,        -1,	// 40 -> 47
-         -1,        -1,        -1,        -1,        -1,        -1,        -1,        -1,	// 48 -> 55
-         -1,        -1,        -1,        -1,        -1,        -1,        -1,        -1,	// 56 -> 63
+    -1,        -1,        -1,        -1,        28,        30,        32,        -1,	//  0 ->  7
+    -1,        -1,        -1,        -1,        -1,        -1,        -1,        -1, 	//  8 -> 15
+    -1,        -1,        -1,        -1,        28,        30,        -1,        -1, 	// 16 -> 23
+    -1,        -1,        -1,        -1,        -1,        -1,        -1,        -1,	// 24 -> 31
+    28,        -1,        28,        -1,        -1,        -1,        -1,        -1,	// 32 -> 39
+    -1,        -1,        28,        30,        28,        -1,        -1,        -1,	// 40 -> 47
+    -1,        -1,        -1,        -1,        -1,        -1,        -1,        -1,	// 48 -> 55
+    -1,        -1,        -1,        -1,        -1,        -1,        -1,        -1,	// 56 -> 63
 } ;
 
 static uint8_t gpioToClkDiv [] =
 {
-         -1,        -1,        -1,        -1,        29,        31,        33,        -1,	//  0 ->  7
-         -1,        -1,        -1,        -1,        -1,        -1,        -1,        -1, 	//  8 -> 15
-         -1,        -1,        -1,        -1,        29,        31,        -1,        -1, 	// 16 -> 23
-         -1,        -1,        -1,        -1,        -1,        -1,        -1,        -1,	// 24 -> 31
-         29,        -1,        29,        -1,        -1,        -1,        -1,        -1,	// 32 -> 39
-         -1,        -1,        29,        31,        29,        -1,        -1,        -1,	// 40 -> 47
-         -1,        -1,        -1,        -1,        -1,        -1,        -1,        -1,	// 48 -> 55
-         -1,        -1,        -1,        -1,        -1,        -1,        -1,        -1,	// 56 -> 63
+    -1,        -1,        -1,        -1,        29,        31,        33,        -1,	//  0 ->  7
+    -1,        -1,        -1,        -1,        -1,        -1,        -1,        -1, 	//  8 -> 15
+    -1,        -1,        -1,        -1,        29,        31,        -1,        -1, 	// 16 -> 23
+    -1,        -1,        -1,        -1,        -1,        -1,        -1,        -1,	// 24 -> 31
+    29,        -1,        29,        -1,        -1,        -1,        -1,        -1,	// 32 -> 39
+    -1,        -1,        29,        31,        29,        -1,        -1,        -1,	// 40 -> 47
+    -1,        -1,        -1,        -1,        -1,        -1,        -1,        -1,	// 48 -> 55
+    -1,        -1,        -1,        -1,        -1,        -1,        -1,        -1,	// 56 -> 63
 } ;
 
 
@@ -636,20 +638,20 @@ static uint8_t gpioToClkDiv [] =
 
 int wiringPiFailure (int fatal, const char *message, ...)
 {
-  va_list argp ;
-  char buffer [1024] ;
+    va_list argp ;
+    char buffer [1024] ;
 
-  if (!fatal && wiringPiReturnCodes)
-    return -1 ;
+    if (!fatal && wiringPiReturnCodes)
+        return -1 ;
 
-  va_start (argp, message) ;
+    va_start (argp, message) ;
     vsnprintf (buffer, 1023, message, argp) ;
-  va_end (argp) ;
+    va_end (argp) ;
 
-  fprintf (stderr, "%s", buffer) ;
-  exit (EXIT_FAILURE) ;
+    fprintf (stderr, "%s", buffer) ;
+    exit (EXIT_FAILURE) ;
 
-  return 0 ;
+    return 0 ;
 }
 
 
@@ -680,124 +682,137 @@ int wiringPiFailure (int fatal, const char *message, ...)
 
 static void piGpioLayoutOops (const char *why)
 {
-  fprintf (stderr, "Oops: Unable to determine board revision from /proc/cpuinfo\n") ;
-  fprintf (stderr, " -> %s\n", why) ;
-  fprintf (stderr, " ->  You'd best google the error to find out why.\n") ;
-//fprintf (stderr, " ->  http://www.raspberrypi.org/phpBB3/viewtopic.php?p=184410#p184410\n") ;
-  exit (EXIT_FAILURE) ;
+    fprintf (stderr, "Oops: Unable to determine board revision from /proc/cpuinfo\n") ;
+    fprintf (stderr, " -> %s\n", why) ;
+    fprintf (stderr, " ->  You'd best google the error to find out why.\n") ;
+    //fprintf (stderr, " ->  http://www.raspberrypi.org/phpBB3/viewtopic.php?p=184410#p184410\n") ;
+    exit (EXIT_FAILURE) ;
 }
 
+#define GPIO_LAYOUT_FIREFLY_RK3399   0x10
 int piGpioLayout (void)
 {
-  FILE *cpuFd ;
-  char line [120] ;
-  char *c ;
-  static int  gpioLayout = -1 ;
+    FILE *cpuFd ;
+    char line [120] ;
+    char *c ;
+    static int  gpioLayout = -1 ;
 
-  if (gpioLayout != -1)	// No point checking twice
-    return gpioLayout ;
+    if (gpioLayout != -1)	// No point checking twice
+        return gpioLayout ;
 
-  if ((cpuFd = fopen ("/proc/cpuinfo", "r")) == NULL)
-    piGpioLayoutOops ("Unable to open /proc/cpuinfo") ;
+    if ((cpuFd = fopen ("/proc/cpuinfo", "r")) == NULL)
+        piGpioLayoutOops ("Unable to open /proc/cpuinfo") ;
 
-// Start by looking for the Architecture to make sure we're really running
-//	on a Pi. I'm getting fed-up with people whinging at me because
-//	they can't get it to work on weirdFruitPi boards...
+    // Start by looking for the Architecture to make sure we're really running
+    //	on a Pi. I'm getting fed-up with people whinging at me because
+    //	they can't get it to work on weirdFruitPi boards...
 
-  while (fgets (line, 120, cpuFd) != NULL)
-    if (strncmp (line, "Hardware", 8) == 0)
-      break ;
+    while (fgets (line, 120, cpuFd) != NULL)
+        if (strncmp (line, "Hardware", 8) == 0)
+            break ;
 
-  if (strncmp (line, "Hardware", 8) != 0)
-    piGpioLayoutOops ("No \"Hardware\" line") ;
+    if (strncmp (line, "Hardware", 8) != 0) {
+        FILE *device = fopen("/proc/device-tree/compatible", "r");
+        if (device == NULL) {
+            fgets(line, 120, device);
+            if (strstr(line,"rk3399-firefly")) {
+                fclose(device);
+                return GPIO_LAYOUT_FIREFLY_RK3399;
+            }
+            else 
+                piGpioLayoutOops ("No \"Hardware\" line") ;
+        }
+        else 
+            piGpioLayoutOops ("No \"Hardware\" line") ;
+    }
 
-  if (wiringPiDebug)
-    printf ("piGpioLayout: Hardware: %s\n", line) ;
+    if (wiringPiDebug)
+        printf ("piGpioLayout: Hardware: %s\n", line) ;
 
-// See if it's BCM2708 or BCM2709 or the new BCM2835.
+    // See if it's BCM2708 or BCM2709 or the new BCM2835.
 
-// OK. As of Kernel 4.8,  we have BCM2835 only, regardless of model.
-//	However I still want to check because it will trap the cheapskates and rip-
-//	off merchants who want to use wiringPi on non-Raspberry Pi platforms - which
-//	I do not support so don't email me your bleating whinges about anything
-//	other than a genuine Raspberry Pi.
+    // OK. As of Kernel 4.8,  we have BCM2835 only, regardless of model.
+    //	However I still want to check because it will trap the cheapskates and rip-
+    //	off merchants who want to use wiringPi on non-Raspberry Pi platforms - which
+    //	I do not support so don't email me your bleating whinges about anything
+    //	other than a genuine Raspberry Pi.
 
-  if (! (strstr (line, "BCM2708") || strstr (line, "BCM2709") || strstr (line, "BCM2835")))
-  {
-    fprintf (stderr, "Unable to determine hardware version. I see: %s,\n", line) ;
-    fprintf (stderr, " - expecting BCM2708, BCM2709 or BCM2835.\n") ;
-    fprintf (stderr, "If this is a genuine Raspberry Pi then please report this\n") ;
-    fprintf (stderr, "to projects@drogon.net. If this is not a Raspberry Pi then you\n") ;
-    fprintf (stderr, "are on your own as wiringPi is designed to support the\n") ;
-    fprintf (stderr, "Raspberry Pi ONLY.\n") ;
-    exit (EXIT_FAILURE) ;
-  }
+    if (! (strstr (line, "BCM2708") || strstr (line, "BCM2709") || strstr (line, "BCM2835")))
+    {
+        fprintf (stderr, "Unable to determine hardware version. I see: %s,\n", line) ;
+        fprintf (stderr, " - expecting BCM2708, BCM2709 or BCM2835.\n") ;
+        fprintf (stderr, "If this is a genuine Raspberry Pi then please report this\n") ;
+        fprintf (stderr, "to projects@drogon.net. If this is not a Raspberry Pi then you\n") ;
+        fprintf (stderr, "are on your own as wiringPi is designed to support the\n") ;
+        fprintf (stderr, "Raspberry Pi ONLY.\n") ;
+        exit (EXIT_FAILURE) ;
+    }
 
-// Right - we're Probably on a Raspberry Pi. Check the revision field for the real
-//	hardware type
-//	In-future, I ought to use the device tree as there are now Pi entries in
-//	/proc/device-tree/ ...
-//	but I'll leave that for the next revision.
+    // Right - we're Probably on a Raspberry Pi. Check the revision field for the real
+    //	hardware type
+    //	In-future, I ought to use the device tree as there are now Pi entries in
+    //	/proc/device-tree/ ...
+    //	but I'll leave that for the next revision.
 
-// Isolate the Revision line
+    // Isolate the Revision line
 
-  rewind (cpuFd) ;
-  while (fgets (line, 120, cpuFd) != NULL)
-    if (strncmp (line, "Revision", 8) == 0)
-      break ;
+    rewind (cpuFd) ;
+    while (fgets (line, 120, cpuFd) != NULL)
+        if (strncmp (line, "Revision", 8) == 0)
+            break ;
 
-  fclose (cpuFd) ;
+    fclose (cpuFd) ;
 
-  if (strncmp (line, "Revision", 8) != 0)
-    piGpioLayoutOops ("No \"Revision\" line") ;
+    if (strncmp (line, "Revision", 8) != 0)
+        piGpioLayoutOops ("No \"Revision\" line") ;
 
-// Chomp trailing CR/NL
+    // Chomp trailing CR/NL
 
-  for (c = &line [strlen (line) - 1] ; (*c == '\n') || (*c == '\r') ; --c)
-    *c = 0 ;
-  
-  if (wiringPiDebug)
-    printf ("piGpioLayout: Revision string: %s\n", line) ;
+    for (c = &line [strlen (line) - 1] ; (*c == '\n') || (*c == '\r') ; --c)
+        *c = 0 ;
 
-// Scan to the first character of the revision number
+    if (wiringPiDebug)
+        printf ("piGpioLayout: Revision string: %s\n", line) ;
 
-  for (c = line ; *c ; ++c)
-    if (*c == ':')
-      break ;
+    // Scan to the first character of the revision number
 
-  if (*c != ':')
-    piGpioLayoutOops ("Bogus \"Revision\" line (no colon)") ;
+    for (c = line ; *c ; ++c)
+        if (*c == ':')
+            break ;
 
-// Chomp spaces
+    if (*c != ':')
+        piGpioLayoutOops ("Bogus \"Revision\" line (no colon)") ;
 
-  ++c ;
-  while (isspace (*c))
+    // Chomp spaces
+
     ++c ;
+    while (isspace (*c))
+        ++c ;
 
-  if (!isxdigit (*c))
-    piGpioLayoutOops ("Bogus \"Revision\" line (no hex digit at start of revision)") ;
+    if (!isxdigit (*c))
+        piGpioLayoutOops ("Bogus \"Revision\" line (no hex digit at start of revision)") ;
 
-// Make sure its long enough
+    // Make sure its long enough
 
-  if (strlen (c) < 4)
-    piGpioLayoutOops ("Bogus revision line (too small)") ;
+    if (strlen (c) < 4)
+        piGpioLayoutOops ("Bogus revision line (too small)") ;
 
-// Isolate  last 4 characters: (in-case of overvolting or new encoding scheme)
+    // Isolate  last 4 characters: (in-case of overvolting or new encoding scheme)
 
-  c = c + strlen (c) - 4 ;
+    c = c + strlen (c) - 4 ;
 
-  if (wiringPiDebug)
-    printf ("piGpioLayout: last4Chars are: \"%s\"\n", c) ;
+    if (wiringPiDebug)
+        printf ("piGpioLayout: last4Chars are: \"%s\"\n", c) ;
 
-  if ( (strcmp (c, "0002") == 0) || (strcmp (c, "0003") == 0))
-    gpioLayout = 1 ;
-  else
-    gpioLayout = 2 ;	// Covers everything else from the B revision 2 to the B+, the Pi v2, v3, zero and CM's.
+    if ( (strcmp (c, "0002") == 0) || (strcmp (c, "0003") == 0))
+        gpioLayout = 1 ;
+    else
+        gpioLayout = 2 ;	// Covers everything else from the B revision 2 to the B+, the Pi v2, v3, zero and CM's.
 
-  if (wiringPiDebug)
-    printf ("piGpioLayoutOops: Returning revision: %d\n", gpioLayout) ;
+    if (wiringPiDebug)
+        printf ("piGpioLayoutOops: Returning revision: %d\n", gpioLayout) ;
 
-  return gpioLayout ;
+    return gpioLayout ;
 }
 
 /*
@@ -808,7 +823,7 @@ int piGpioLayout (void)
 
 int piBoardRev (void)
 {
-  return piGpioLayout () ;
+    return piGpioLayout () ;
 }
 
 
@@ -882,140 +897,148 @@ int piBoardRev (void)
 
 void piBoardId (int *model, int *rev, int *mem, int *maker, int *warranty)
 {
-  FILE *cpuFd ;
-  char line [120] ;
-  char *c ;
-  unsigned int revision ;
-  int bRev, bType, bProc, bMfg, bMem, bWarranty ;
+    FILE *cpuFd ;
+    char line [120] ;
+    char *c ;
+    unsigned int revision ;
+    int bRev, bType, bProc, bMfg, bMem, bWarranty ;
 
-//	Will deal with the properly later on - for now, lets just get it going...
-//  unsigned int modelNum ;
+    //	Will deal with the properly later on - for now, lets just get it going...
+    //  unsigned int modelNum ;
 
-  (void)piGpioLayout () ;	// Call this first to make sure all's OK. Don't care about the result.
+    //  (void)piGpioLayout () ;	// Call this first to make sure all's OK. Don't care about the result.
 
-  if ((cpuFd = fopen ("/proc/cpuinfo", "r")) == NULL)
-    piGpioLayoutOops ("Unable to open /proc/cpuinfo") ;
+    if( piGpioLayout() == GPIO_LAYOUT_FIREFLY_RK3399) {
+        *model = PI_MODEL_FIREFLY_RK3399;
+        *rev =  PI_VERSION_FIREFLY;
+        *mem = 0;
+        *maker = PI_MAKER_FIREFLY;
+        return;
+    }
 
-  while (fgets (line, 120, cpuFd) != NULL)
-    if (strncmp (line, "Revision", 8) == 0)
-      break ;
+    if ((cpuFd = fopen ("/proc/cpuinfo", "r")) == NULL)
+        piGpioLayoutOops ("Unable to open /proc/cpuinfo") ;
 
-  fclose (cpuFd) ;
+    while (fgets (line, 120, cpuFd) != NULL)
+        if (strncmp (line, "Revision", 8) == 0)
+            break ;
 
-  if (strncmp (line, "Revision", 8) != 0)
-    piGpioLayoutOops ("No \"Revision\" line") ;
+    fclose (cpuFd) ;
 
-// Chomp trailing CR/NL
+    if (strncmp (line, "Revision", 8) != 0)
+        piGpioLayoutOops ("No \"Revision\" line") ;
 
-  for (c = &line [strlen (line) - 1] ; (*c == '\n') || (*c == '\r') ; --c)
-    *c = 0 ;
-  
-  if (wiringPiDebug)
-    printf ("piBoardId: Revision string: %s\n", line) ;
+    // Chomp trailing CR/NL
 
-// Need to work out if it's using the new or old encoding scheme:
+    for (c = &line [strlen (line) - 1] ; (*c == '\n') || (*c == '\r') ; --c)
+        *c = 0 ;
 
-// Scan to the first character of the revision number
+    if (wiringPiDebug)
+        printf ("piBoardId: Revision string: %s\n", line) ;
 
-  for (c = line ; *c ; ++c)
-    if (*c == ':')
-      break ;
+    // Need to work out if it's using the new or old encoding scheme:
 
-  if (*c != ':')
-    piGpioLayoutOops ("Bogus \"Revision\" line (no colon)") ;
+    // Scan to the first character of the revision number
 
-// Chomp spaces
+    for (c = line ; *c ; ++c)
+        if (*c == ':')
+            break ;
 
-  ++c ;
-  while (isspace (*c))
+    if (*c != ':')
+        piGpioLayoutOops ("Bogus \"Revision\" line (no colon)") ;
+
+    // Chomp spaces
+
     ++c ;
+    while (isspace (*c))
+        ++c ;
 
-  if (!isxdigit (*c))
-    piGpioLayoutOops ("Bogus \"Revision\" line (no hex digit at start of revision)") ;
+    if (!isxdigit (*c))
+        piGpioLayoutOops ("Bogus \"Revision\" line (no hex digit at start of revision)") ;
 
-  revision = (unsigned int)strtol (c, NULL, 16) ; // Hex number with no leading 0x
+    revision = (unsigned int)strtol (c, NULL, 16) ; // Hex number with no leading 0x
 
-// Check for new way:
+    // Check for new way:
 
-  if ((revision &  (1 << 23)) != 0)	// New way
-  {
-    if (wiringPiDebug)
-      printf ("piBoardId: New Way: revision is: 0x%08X\n", revision) ;
+    if ((revision &  (1 << 23)) != 0)	// New way
+    {
+        if (wiringPiDebug)
+            printf ("piBoardId: New Way: revision is: 0x%08X\n", revision) ;
 
-    bRev      = (revision & (0x0F <<  0)) >>  0 ;
-    bType     = (revision & (0xFF <<  4)) >>  4 ;
-    bProc     = (revision & (0x0F << 12)) >> 12 ;	// Not used for now.
-    bMfg      = (revision & (0x0F << 16)) >> 16 ;
-    bMem      = (revision & (0x07 << 20)) >> 20 ;
-    bWarranty = (revision & (0x03 << 24)) != 0 ;
-    
-    *model    = bType ;
-    *rev      = bRev ;
-    *mem      = bMem ;
-    *maker    = bMfg  ;
-    *warranty = bWarranty ;
+        bRev      = (revision & (0x0F <<  0)) >>  0 ;
+        bType     = (revision & (0xFF <<  4)) >>  4 ;
+        bProc     = (revision & (0x0F << 12)) >> 12 ;	// Not used for now.
+        bMfg      = (revision & (0x0F << 16)) >> 16 ;
+        bMem      = (revision & (0x07 << 20)) >> 20 ;
+        bWarranty = (revision & (0x03 << 24)) != 0 ;
 
-    if (wiringPiDebug)
-      printf ("piBoardId: rev: %d, type: %d, proc: %d, mfg: %d, mem: %d, warranty: %d\n",
-		bRev, bType, bProc, bMfg, bMem, bWarranty) ;
-  }
-  else					// Old way
-  {
-    if (wiringPiDebug)
-      printf ("piBoardId: Old Way: revision is: %s\n", c) ;
+        *model    = bType ;
+        *rev      = bRev ;
+        *mem      = bMem ;
+        *maker    = bMfg  ;
+        *warranty = bWarranty ;
 
-    if (!isdigit (*c))
-      piGpioLayoutOops ("Bogus \"Revision\" line (no digit at start of revision)") ;
+        if (wiringPiDebug)
+            printf ("piBoardId: rev: %d, type: %d, proc: %d, mfg: %d, mem: %d, warranty: %d\n",
+                    bRev, bType, bProc, bMfg, bMem, bWarranty) ;
+    }
+    else					// Old way
+    {
+        if (wiringPiDebug)
+            printf ("piBoardId: Old Way: revision is: %s\n", c) ;
 
-// Make sure its long enough
+        if (!isdigit (*c))
+            piGpioLayoutOops ("Bogus \"Revision\" line (no digit at start of revision)") ;
 
-    if (strlen (c) < 4)
-      piGpioLayoutOops ("Bogus \"Revision\" line (not long enough)") ;
+        // Make sure its long enough
 
-// If longer than 4, we'll assume it's been overvolted
+        if (strlen (c) < 4)
+            piGpioLayoutOops ("Bogus \"Revision\" line (not long enough)") ;
 
-    *warranty = strlen (c) > 4 ;
-  
-// Extract last 4 characters:
+        // If longer than 4, we'll assume it's been overvolted
 
-    c = c + strlen (c) - 4 ;
+        *warranty = strlen (c) > 4 ;
 
-// Fill out the replys as appropriate
+        // Extract last 4 characters:
 
-    /**/ if (strcmp (c, "0002") == 0) { *model = PI_MODEL_B  ; *rev = PI_VERSION_1   ; *mem = 0 ; *maker = PI_MAKER_EGOMAN  ; }
-    else if (strcmp (c, "0003") == 0) { *model = PI_MODEL_B  ; *rev = PI_VERSION_1_1 ; *mem = 0 ; *maker = PI_MAKER_EGOMAN  ; }
+        c = c + strlen (c) - 4 ;
 
-    else if (strcmp (c, "0004") == 0) { *model = PI_MODEL_B  ; *rev = PI_VERSION_1_2 ; *mem = 0 ; *maker = PI_MAKER_SONY    ; }
-    else if (strcmp (c, "0005") == 0) { *model = PI_MODEL_B  ; *rev = PI_VERSION_1_2 ; *mem = 0 ; *maker = PI_MAKER_EGOMAN  ; }
-    else if (strcmp (c, "0006") == 0) { *model = PI_MODEL_B  ; *rev = PI_VERSION_1_2 ; *mem = 0 ; *maker = PI_MAKER_EGOMAN  ; }
+        // Fill out the replys as appropriate
 
-    else if (strcmp (c, "0007") == 0) { *model = PI_MODEL_A  ; *rev = PI_VERSION_1_2 ; *mem = 0 ; *maker = PI_MAKER_EGOMAN  ; }
-    else if (strcmp (c, "0008") == 0) { *model = PI_MODEL_A  ; *rev = PI_VERSION_1_2 ; *mem = 0 ; *maker = PI_MAKER_SONY ;  ; }
-    else if (strcmp (c, "0009") == 0) { *model = PI_MODEL_A  ; *rev = PI_VERSION_1_2 ; *mem = 0 ; *maker = PI_MAKER_EGOMAN  ; }
+        /**/ if (strcmp (c, "0002") == 0) { *model = PI_MODEL_B  ; *rev = PI_VERSION_1   ; *mem = 0 ; *maker = PI_MAKER_EGOMAN  ; }
+        else if (strcmp (c, "0003") == 0) { *model = PI_MODEL_B  ; *rev = PI_VERSION_1_1 ; *mem = 0 ; *maker = PI_MAKER_EGOMAN  ; }
 
-    else if (strcmp (c, "000d") == 0) { *model = PI_MODEL_B  ; *rev = PI_VERSION_1_2 ; *mem = 1 ; *maker = PI_MAKER_EGOMAN  ; }
-    else if (strcmp (c, "000e") == 0) { *model = PI_MODEL_B  ; *rev = PI_VERSION_1_2 ; *mem = 1 ; *maker = PI_MAKER_SONY    ; }
-    else if (strcmp (c, "000f") == 0) { *model = PI_MODEL_B  ; *rev = PI_VERSION_1_2 ; *mem = 1 ; *maker = PI_MAKER_EGOMAN  ; }
+        else if (strcmp (c, "0004") == 0) { *model = PI_MODEL_B  ; *rev = PI_VERSION_1_2 ; *mem = 0 ; *maker = PI_MAKER_SONY    ; }
+        else if (strcmp (c, "0005") == 0) { *model = PI_MODEL_B  ; *rev = PI_VERSION_1_2 ; *mem = 0 ; *maker = PI_MAKER_EGOMAN  ; }
+        else if (strcmp (c, "0006") == 0) { *model = PI_MODEL_B  ; *rev = PI_VERSION_1_2 ; *mem = 0 ; *maker = PI_MAKER_EGOMAN  ; }
 
-    else if (strcmp (c, "0010") == 0) { *model = PI_MODEL_BP ; *rev = PI_VERSION_1_2 ; *mem = 1 ; *maker = PI_MAKER_SONY    ; }
-    else if (strcmp (c, "0013") == 0) { *model = PI_MODEL_BP ; *rev = PI_VERSION_1_2 ; *mem = 1 ; *maker = PI_MAKER_EMBEST  ; }
-    else if (strcmp (c, "0016") == 0) { *model = PI_MODEL_BP ; *rev = PI_VERSION_1_2 ; *mem = 1 ; *maker = PI_MAKER_SONY    ; }
-    else if (strcmp (c, "0019") == 0) { *model = PI_MODEL_BP ; *rev = PI_VERSION_1_2 ; *mem = 1 ; *maker = PI_MAKER_EGOMAN  ; }
+        else if (strcmp (c, "0007") == 0) { *model = PI_MODEL_A  ; *rev = PI_VERSION_1_2 ; *mem = 0 ; *maker = PI_MAKER_EGOMAN  ; }
+        else if (strcmp (c, "0008") == 0) { *model = PI_MODEL_A  ; *rev = PI_VERSION_1_2 ; *mem = 0 ; *maker = PI_MAKER_SONY ;  ; }
+        else if (strcmp (c, "0009") == 0) { *model = PI_MODEL_A  ; *rev = PI_VERSION_1_2 ; *mem = 0 ; *maker = PI_MAKER_EGOMAN  ; }
 
-    else if (strcmp (c, "0011") == 0) { *model = PI_MODEL_CM ; *rev = PI_VERSION_1_1 ; *mem = 1 ; *maker = PI_MAKER_SONY    ; }
-    else if (strcmp (c, "0014") == 0) { *model = PI_MODEL_CM ; *rev = PI_VERSION_1_1 ; *mem = 1 ; *maker = PI_MAKER_EMBEST  ; }
-    else if (strcmp (c, "0017") == 0) { *model = PI_MODEL_CM ; *rev = PI_VERSION_1_1 ; *mem = 1 ; *maker = PI_MAKER_SONY    ; }
-    else if (strcmp (c, "001a") == 0) { *model = PI_MODEL_CM ; *rev = PI_VERSION_1_1 ; *mem = 1 ; *maker = PI_MAKER_EGOMAN  ; }
+        else if (strcmp (c, "000d") == 0) { *model = PI_MODEL_B  ; *rev = PI_VERSION_1_2 ; *mem = 1 ; *maker = PI_MAKER_EGOMAN  ; }
+        else if (strcmp (c, "000e") == 0) { *model = PI_MODEL_B  ; *rev = PI_VERSION_1_2 ; *mem = 1 ; *maker = PI_MAKER_SONY    ; }
+        else if (strcmp (c, "000f") == 0) { *model = PI_MODEL_B  ; *rev = PI_VERSION_1_2 ; *mem = 1 ; *maker = PI_MAKER_EGOMAN  ; }
 
-    else if (strcmp (c, "0012") == 0) { *model = PI_MODEL_AP ; *rev = PI_VERSION_1_1 ; *mem = 0 ; *maker = PI_MAKER_SONY    ; }
-    else if (strcmp (c, "0015") == 0) { *model = PI_MODEL_AP ; *rev = PI_VERSION_1_1 ; *mem = 1 ; *maker = PI_MAKER_EMBEST  ; }
-    else if (strcmp (c, "0018") == 0) { *model = PI_MODEL_AP ; *rev = PI_VERSION_1_1 ; *mem = 0 ; *maker = PI_MAKER_SONY    ; }
-    else if (strcmp (c, "001b") == 0) { *model = PI_MODEL_AP ; *rev = PI_VERSION_1_1 ; *mem = 0 ; *maker = PI_MAKER_EGOMAN  ; }
+        else if (strcmp (c, "0010") == 0) { *model = PI_MODEL_BP ; *rev = PI_VERSION_1_2 ; *mem = 1 ; *maker = PI_MAKER_SONY    ; }
+        else if (strcmp (c, "0013") == 0) { *model = PI_MODEL_BP ; *rev = PI_VERSION_1_2 ; *mem = 1 ; *maker = PI_MAKER_EMBEST  ; }
+        else if (strcmp (c, "0016") == 0) { *model = PI_MODEL_BP ; *rev = PI_VERSION_1_2 ; *mem = 1 ; *maker = PI_MAKER_SONY    ; }
+        else if (strcmp (c, "0019") == 0) { *model = PI_MODEL_BP ; *rev = PI_VERSION_1_2 ; *mem = 1 ; *maker = PI_MAKER_EGOMAN  ; }
 
-    else                              { *model = 0           ; *rev = 0              ; *mem =   0 ; *maker = 0 ;               }
-  }
+        else if (strcmp (c, "0011") == 0) { *model = PI_MODEL_CM ; *rev = PI_VERSION_1_1 ; *mem = 1 ; *maker = PI_MAKER_SONY    ; }
+        else if (strcmp (c, "0014") == 0) { *model = PI_MODEL_CM ; *rev = PI_VERSION_1_1 ; *mem = 1 ; *maker = PI_MAKER_EMBEST  ; }
+        else if (strcmp (c, "0017") == 0) { *model = PI_MODEL_CM ; *rev = PI_VERSION_1_1 ; *mem = 1 ; *maker = PI_MAKER_SONY    ; }
+        else if (strcmp (c, "001a") == 0) { *model = PI_MODEL_CM ; *rev = PI_VERSION_1_1 ; *mem = 1 ; *maker = PI_MAKER_EGOMAN  ; }
+
+        else if (strcmp (c, "0012") == 0) { *model = PI_MODEL_AP ; *rev = PI_VERSION_1_1 ; *mem = 0 ; *maker = PI_MAKER_SONY    ; }
+        else if (strcmp (c, "0015") == 0) { *model = PI_MODEL_AP ; *rev = PI_VERSION_1_1 ; *mem = 1 ; *maker = PI_MAKER_EMBEST  ; }
+        else if (strcmp (c, "0018") == 0) { *model = PI_MODEL_AP ; *rev = PI_VERSION_1_1 ; *mem = 0 ; *maker = PI_MAKER_SONY    ; }
+        else if (strcmp (c, "001b") == 0) { *model = PI_MODEL_AP ; *rev = PI_VERSION_1_1 ; *mem = 0 ; *maker = PI_MAKER_EGOMAN  ; }
+
+        else                              { *model = 0           ; *rev = 0              ; *mem =   0 ; *maker = 0 ;               }
+    }
 }
- 
+
 
 
 /*
@@ -1027,7 +1050,7 @@ void piBoardId (int *model, int *rev, int *mem, int *maker, int *warranty)
 
 int wpiPinToGpio (int wpiPin)
 {
-  return pinToGpio [wpiPin & 63] ;
+    return pinToGpio [wpiPin & 63] ;
 }
 
 
@@ -1040,7 +1063,7 @@ int wpiPinToGpio (int wpiPin)
 
 int physPinToGpio (int physPin)
 {
-  return physToGpio [physPin & 63] ;
+    return physToGpio [physPin & 63] ;
 }
 
 
@@ -1049,25 +1072,29 @@ int physPinToGpio (int physPin)
  *	Set the PAD driver value
  *********************************************************************************
  */
-
+//还不确定这个函数的用处============================
 void setPadDrive (int group, int value)
 {
-  uint32_t wrVal ;
+    uint32_t wrVal ;
 
-  if ((wiringPiMode == WPI_MODE_PINS) || (wiringPiMode == WPI_MODE_PHYS) || (wiringPiMode == WPI_MODE_GPIO))
-  {
-    if ((group < 0) || (group > 2))
-      return ;
-
-    wrVal = BCM_PASSWORD | 0x18 | (value & 7) ;
-    *(pads + group + 11) = wrVal ;
-
-    if (wiringPiDebug)
-    {
-      printf ("setPadDrive: Group: %d, value: %d (%08X)\n", group, value, wrVal) ;
-      printf ("Read : %08X\n", *(pads + group + 11)) ;
+    if (g_PI_Model == PI_MODEL_FIREFLY_RK3399) {
+        wiringPiFailure (WPI_FATAL, "model firefly-rk3399 not support function %s\n",__FUNCTION__) ;
     }
-  }
+
+    if ((wiringPiMode == WPI_MODE_PINS) || (wiringPiMode == WPI_MODE_PHYS) || (wiringPiMode == WPI_MODE_GPIO))
+    {
+        if ((group < 0) || (group > 2))
+            return ;
+
+        wrVal = BCM_PASSWORD | 0x18 | (value & 7) ;
+        *(pads + group + 11) = wrVal ;
+
+        if (wiringPiDebug)
+        {
+            printf ("setPadDrive: Group: %d, value: %d (%08X)\n", group, value, wrVal) ;
+            printf ("Read : %08X\n", *(pads + group + 11)) ;
+        }
+    }
 }
 
 
@@ -1080,23 +1107,27 @@ void setPadDrive (int group, int value)
 
 int getAlt (int pin)
 {
-  int fSel, shift, alt ;
+    int fSel, shift, alt ;
 
-  pin &= 63 ;
+    if (g_PI_Model == PI_MODEL_FIREFLY_RK3399) {
+        return wiringPiFailure (WPI_FATAL, "model firefly-rk3399 not support function %s\n",__FUNCTION__) ;
+    }
 
-  /**/ if (wiringPiMode == WPI_MODE_PINS)
-    pin = pinToGpio [pin] ;
-  else if (wiringPiMode == WPI_MODE_PHYS)
-    pin = physToGpio [pin] ;
-  else if (wiringPiMode != WPI_MODE_GPIO)
-    return 0 ;
+    pin &= 63 ;
 
-  fSel    = gpioToGPFSEL [pin] ;
-  shift   = gpioToShift  [pin] ;
+    /**/ if (wiringPiMode == WPI_MODE_PINS)
+        pin = pinToGpio [pin] ;
+    else if (wiringPiMode == WPI_MODE_PHYS)
+        pin = physToGpio [pin] ;
+    else if (wiringPiMode != WPI_MODE_GPIO)
+        return 0 ;
 
-  alt = (*(gpio + fSel) >> shift) & 7 ;
+    fSel    = gpioToGPFSEL [pin] ;
+    shift   = gpioToShift  [pin] ;
 
-  return alt ;
+    alt = (*(gpio + fSel) >> shift) & 7 ;
+
+    return alt ;
 }
 
 
@@ -1105,16 +1136,24 @@ int getAlt (int pin)
  *	Select the native "balanced" mode, or standard mark:space mode
  *********************************************************************************
  */
-
 void pwmSetMode (int mode)
 {
-  if ((wiringPiMode == WPI_MODE_PINS) || (wiringPiMode == WPI_MODE_PHYS) || (wiringPiMode == WPI_MODE_GPIO))
-  {
-    if (mode == PWM_MODE_MS)
-      *(pwm + PWM_CONTROL) = PWM0_ENABLE | PWM1_ENABLE | PWM0_MS_MODE | PWM1_MS_MODE ;
-    else
-      *(pwm + PWM_CONTROL) = PWM0_ENABLE | PWM1_ENABLE ;
-  }
+    if (g_PI_Model == PI_MODEL_FIREFLY_RK3399) 
+    {
+        if (mode == PWM_MODE_BAL)
+        {
+            rk3399_set_pwm_duty_balance();
+        }
+        return;
+    }
+
+    if ((wiringPiMode == WPI_MODE_PINS) || (wiringPiMode == WPI_MODE_PHYS) || (wiringPiMode == WPI_MODE_GPIO))
+    {
+        if (mode == PWM_MODE_MS)
+            *(pwm + PWM_CONTROL) = PWM0_ENABLE | PWM1_ENABLE | PWM0_MS_MODE | PWM1_MS_MODE ;
+        else
+            *(pwm + PWM_CONTROL) = PWM0_ENABLE | PWM1_ENABLE ;
+    }
 }
 
 
@@ -1124,14 +1163,21 @@ void pwmSetMode (int mode)
  *	value. If you want different in your own code, then write your own.
  *********************************************************************************
  */
-
 void pwmSetRange (unsigned int range)
 {
-  if ((wiringPiMode == WPI_MODE_PINS) || (wiringPiMode == WPI_MODE_PHYS) || (wiringPiMode == WPI_MODE_GPIO))
-  {
-    *(pwm + PWM0_RANGE) = range ; delayMicroseconds (10) ;
-    *(pwm + PWM1_RANGE) = range ; delayMicroseconds (10) ;
-  }
+    if (g_PI_Model == PI_MODEL_FIREFLY_RK3399)
+    {
+        unsigned int period = range*10000 / 6;
+        rk3399_set_pwm_period(period);
+        rk3399_set_pwm_duty(period/2);
+        return;
+    }
+
+    if ((wiringPiMode == WPI_MODE_PINS) || (wiringPiMode == WPI_MODE_PHYS) || (wiringPiMode == WPI_MODE_GPIO))
+    {
+        *(pwm + PWM0_RANGE) = range ; delayMicroseconds (10) ;
+        *(pwm + PWM1_RANGE) = range ; delayMicroseconds (10) ;
+    }
 }
 
 
@@ -1145,41 +1191,48 @@ void pwmSetRange (unsigned int range)
 
 void pwmSetClock (int divisor)
 {
-  uint32_t pwm_control ;
-  divisor &= 4095 ;
+    uint32_t pwm_control ;
+    divisor &= 4095 ;
 
-  if ((wiringPiMode == WPI_MODE_PINS) || (wiringPiMode == WPI_MODE_PHYS) || (wiringPiMode == WPI_MODE_GPIO))
-  {
-    if (wiringPiDebug)
-      printf ("Setting to: %d. Current: 0x%08X\n", divisor, *(clk + PWMCLK_DIV)) ;
+    if (g_PI_Model == PI_MODEL_FIREFLY_RK3399)
+    {
+        unsigned int period = divisor * 10000 / 192;
+        rk3399_set_pwm_period(period);
+        return ;
+    }
 
-    pwm_control = *(pwm + PWM_CONTROL) ;		// preserve PWM_CONTROL
+    if ((wiringPiMode == WPI_MODE_PINS) || (wiringPiMode == WPI_MODE_PHYS) || (wiringPiMode == WPI_MODE_GPIO))
+    {
+        if (wiringPiDebug)
+            printf ("Setting to: %d. Current: 0x%08X\n", divisor, *(clk + PWMCLK_DIV)) ;
 
-// We need to stop PWM prior to stopping PWM clock in MS mode otherwise BUSY
-// stays high.
+        pwm_control = *(pwm + PWM_CONTROL) ;		// preserve PWM_CONTROL
 
-    *(pwm + PWM_CONTROL) = 0 ;				// Stop PWM
+        // We need to stop PWM prior to stopping PWM clock in MS mode otherwise BUSY
+        // stays high.
 
-// Stop PWM clock before changing divisor. The delay after this does need to
-// this big (95uS occasionally fails, 100uS OK), it's almost as though the BUSY
-// flag is not working properly in balanced mode. Without the delay when DIV is
-// adjusted the clock sometimes switches to very slow, once slow further DIV
-// adjustments do nothing and it's difficult to get out of this mode.
+        *(pwm + PWM_CONTROL) = 0 ;				// Stop PWM
 
-    *(clk + PWMCLK_CNTL) = BCM_PASSWORD | 0x01 ;	// Stop PWM Clock
-      delayMicroseconds (110) ;			// prevents clock going sloooow
+        // Stop PWM clock before changing divisor. The delay after this does need to
+        // this big (95uS occasionally fails, 100uS OK), it's almost as though the BUSY
+        // flag is not working properly in balanced mode. Without the delay when DIV is
+        // adjusted the clock sometimes switches to very slow, once slow further DIV
+        // adjustments do nothing and it's difficult to get out of this mode.
 
-    while ((*(clk + PWMCLK_CNTL) & 0x80) != 0)	// Wait for clock to be !BUSY
-      delayMicroseconds (1) ;
+        *(clk + PWMCLK_CNTL) = BCM_PASSWORD | 0x01 ;	// Stop PWM Clock
+        delayMicroseconds (110) ;			// prevents clock going sloooow
 
-    *(clk + PWMCLK_DIV)  = BCM_PASSWORD | (divisor << 12) ;
+        while ((*(clk + PWMCLK_CNTL) & 0x80) != 0)	// Wait for clock to be !BUSY
+            delayMicroseconds (1) ;
 
-    *(clk + PWMCLK_CNTL) = BCM_PASSWORD | 0x11 ;	// Start PWM clock
-    *(pwm + PWM_CONTROL) = pwm_control ;		// restore PWM_CONTROL
+        *(clk + PWMCLK_DIV)  = BCM_PASSWORD | (divisor << 12) ;
 
-    if (wiringPiDebug)
-      printf ("Set     to: %d. Now    : 0x%08X\n", divisor, *(clk + PWMCLK_DIV)) ;
-  }
+        *(clk + PWMCLK_CNTL) = BCM_PASSWORD | 0x11 ;	// Start PWM clock
+        *(pwm + PWM_CONTROL) = pwm_control ;		// restore PWM_CONTROL
+
+        if (wiringPiDebug)
+            printf ("Set     to: %d. Now    : 0x%08X\n", divisor, *(clk + PWMCLK_DIV)) ;
+    }
 }
 
 
@@ -1191,30 +1244,34 @@ void pwmSetClock (int divisor)
 
 void gpioClockSet (int pin, int freq)
 {
-  int divi, divr, divf ;
+    int divi, divr, divf ;
 
-  pin &= 63 ;
+    if (g_PI_Model == PI_MODEL_FIREFLY_RK3399) {
+        wiringPiFailure (WPI_FATAL, "model firefly-rk3399 not support function %s\n",__FUNCTION__) ;
+    }
 
-  /**/ if (wiringPiMode == WPI_MODE_PINS)
-    pin = pinToGpio [pin] ;
-  else if (wiringPiMode == WPI_MODE_PHYS)
-    pin = physToGpio [pin] ;
-  else if (wiringPiMode != WPI_MODE_GPIO)
-    return ;
-  
-  divi = 19200000 / freq ;
-  divr = 19200000 % freq ;
-  divf = (int)((double)divr * 4096.0 / 19200000.0) ;
+    pin &= 63 ;
 
-  if (divi > 4095)
-    divi = 4095 ;
+    /**/ if (wiringPiMode == WPI_MODE_PINS)
+        pin = pinToGpio [pin] ;
+    else if (wiringPiMode == WPI_MODE_PHYS)
+        pin = physToGpio [pin] ;
+    else if (wiringPiMode != WPI_MODE_GPIO)
+        return ;
 
-  *(clk + gpioToClkCon [pin]) = BCM_PASSWORD | GPIO_CLOCK_SOURCE ;		// Stop GPIO Clock
-  while ((*(clk + gpioToClkCon [pin]) & 0x80) != 0)				// ... and wait
-    ;
+    divi = 19200000 / freq ;
+    divr = 19200000 % freq ;
+    divf = (int)((double)divr * 4096.0 / 19200000.0) ;
 
-  *(clk + gpioToClkDiv [pin]) = BCM_PASSWORD | (divi << 12) | divf ;		// Set dividers
-  *(clk + gpioToClkCon [pin]) = BCM_PASSWORD | 0x10 | GPIO_CLOCK_SOURCE ;	// Start Clock
+    if (divi > 4095)
+        divi = 4095 ;
+
+    *(clk + gpioToClkCon [pin]) = BCM_PASSWORD | GPIO_CLOCK_SOURCE ;		// Stop GPIO Clock
+    while ((*(clk + gpioToClkCon [pin]) & 0x80) != 0)				// ... and wait
+        ;
+
+    *(clk + gpioToClkDiv [pin]) = BCM_PASSWORD | (divi << 12) | divf ;		// Set dividers
+    *(clk + gpioToClkCon [pin]) = BCM_PASSWORD | 0x10 | GPIO_CLOCK_SOURCE ;	// Start Clock
 }
 
 
@@ -1226,15 +1283,15 @@ void gpioClockSet (int pin, int freq)
 
 struct wiringPiNodeStruct *wiringPiFindNode (int pin)
 {
-  struct wiringPiNodeStruct *node = wiringPiNodes ;
+    struct wiringPiNodeStruct *node = wiringPiNodes ;
 
-  while (node != NULL)
-    if ((pin >= node->pinBase) && (pin <= node->pinMax))
-      return node ;
-    else
-      node = node->next ;
+    while (node != NULL)
+        if ((pin >= node->pinBase) && (pin <= node->pinMax))
+            return node ;
+        else
+            node = node->next ;
 
-  return NULL ;
+    return NULL ;
 }
 
 
@@ -1254,37 +1311,37 @@ static void analogWriteDummy         (UNU struct wiringPiNodeStruct *node, UNU i
 
 struct wiringPiNodeStruct *wiringPiNewNode (int pinBase, int numPins)
 {
-  int    pin ;
-  struct wiringPiNodeStruct *node ;
+    int    pin ;
+    struct wiringPiNodeStruct *node ;
 
-// Minimum pin base is 64
+    // Minimum pin base is 64
 
-  if (pinBase < 64)
-    (void)wiringPiFailure (WPI_FATAL, "wiringPiNewNode: pinBase of %d is < 64\n", pinBase) ;
+    if (pinBase < 64)
+        (void)wiringPiFailure (WPI_FATAL, "wiringPiNewNode: pinBase of %d is < 64\n", pinBase) ;
 
-// Check all pins in-case there is overlap:
+    // Check all pins in-case there is overlap:
 
-  for (pin = pinBase ; pin < (pinBase + numPins) ; ++pin)
-    if (wiringPiFindNode (pin) != NULL)
-      (void)wiringPiFailure (WPI_FATAL, "wiringPiNewNode: Pin %d overlaps with existing definition\n", pin) ;
+    for (pin = pinBase ; pin < (pinBase + numPins) ; ++pin)
+        if (wiringPiFindNode (pin) != NULL)
+            (void)wiringPiFailure (WPI_FATAL, "wiringPiNewNode: Pin %d overlaps with existing definition\n", pin) ;
 
-  node = (struct wiringPiNodeStruct *)calloc (sizeof (struct wiringPiNodeStruct), 1) ;	// calloc zeros
-  if (node == NULL)
-    (void)wiringPiFailure (WPI_FATAL, "wiringPiNewNode: Unable to allocate memory: %s\n", strerror (errno)) ;
+    node = (struct wiringPiNodeStruct *)calloc (sizeof (struct wiringPiNodeStruct), 1) ;	// calloc zeros
+    if (node == NULL)
+        (void)wiringPiFailure (WPI_FATAL, "wiringPiNewNode: Unable to allocate memory: %s\n", strerror (errno)) ;
 
-  node->pinBase         = pinBase ;
-  node->pinMax          = pinBase + numPins - 1 ;
-  node->pinMode         = pinModeDummy ;
-  node->pullUpDnControl = pullUpDnControlDummy ;
-  node->digitalRead     = digitalReadDummy ;
-  node->digitalWrite    = digitalWriteDummy ;
-  node->pwmWrite        = pwmWriteDummy ;
-  node->analogRead      = analogReadDummy ;
-  node->analogWrite     = analogWriteDummy ;
-  node->next            = wiringPiNodes ;
-  wiringPiNodes         = node ;
+    node->pinBase         = pinBase ;
+    node->pinMax          = pinBase + numPins - 1 ;
+    node->pinMode         = pinModeDummy ;
+    node->pullUpDnControl = pullUpDnControlDummy ;
+    node->digitalRead     = digitalReadDummy ;
+    node->digitalWrite    = digitalWriteDummy ;
+    node->pwmWrite        = pwmWriteDummy ;
+    node->analogRead      = analogReadDummy ;
+    node->analogWrite     = analogWriteDummy ;
+    node->next            = wiringPiNodes ;
+    wiringPiNodes         = node ;
 
-  return node ;
+    return node ;
 }
 
 
@@ -1299,7 +1356,7 @@ struct wiringPiNodeStruct *wiringPiNewNode (int pinBase, int numPins)
 
 void pinEnableED01Pi (int pin)
 {
-  pin = pinToGpio [pin & 63] ;
+    pin = pinToGpio [pin & 63] ;
 }
 #endif
 
@@ -1318,22 +1375,26 @@ void pinEnableED01Pi (int pin)
 
 void pinModeAlt (int pin, int mode)
 {
-  int fSel, shift ;
+    int fSel, shift ;
 
-  if ((pin & PI_GPIO_MASK) == 0)		// On-board pin
-  {
-    /**/ if (wiringPiMode == WPI_MODE_PINS)
-      pin = pinToGpio [pin] ;
-    else if (wiringPiMode == WPI_MODE_PHYS)
-      pin = physToGpio [pin] ;
-    else if (wiringPiMode != WPI_MODE_GPIO)
-      return ;
+    if (g_PI_Model == PI_MODEL_FIREFLY_RK3399) {
+        wiringPiFailure (WPI_FATAL, "model firefly-rk3399 not support function %s\n",__FUNCTION__) ;
+    }
 
-    fSel  = gpioToGPFSEL [pin] ;
-    shift = gpioToShift  [pin] ;
+    if ((pin & PI_GPIO_MASK) == 0)		// On-board pin
+    {
+        /**/ if (wiringPiMode == WPI_MODE_PINS)
+            pin = pinToGpio [pin] ;
+        else if (wiringPiMode == WPI_MODE_PHYS)
+            pin = physToGpio [pin] ;
+        else if (wiringPiMode != WPI_MODE_GPIO)
+            return ;
 
-    *(gpio + fSel) = (*(gpio + fSel) & ~(7 << shift)) | ((mode & 0x7) << shift) ;
-  }
+        fSel  = gpioToGPFSEL [pin] ;
+        shift = gpioToShift  [pin] ;
+
+        *(gpio + fSel) = (*(gpio + fSel) & ~(7 << shift)) | ((mode & 0x7) << shift) ;
+    }
 }
 
 
@@ -1345,70 +1406,114 @@ void pinModeAlt (int pin, int mode)
 
 void pinMode (int pin, int mode)
 {
-  int    fSel, shift, alt ;
-  struct wiringPiNodeStruct *node = wiringPiNodes ;
-  int origPin = pin ;
+    int    fSel, shift, alt ;
+    struct wiringPiNodeStruct *node = wiringPiNodes ;
+    int origPin = pin ;
 
-  if ((pin & PI_GPIO_MASK) == 0)		// On-board pin
-  {
-    /**/ if (wiringPiMode == WPI_MODE_PINS)
-      pin = pinToGpio [pin] ;
-    else if (wiringPiMode == WPI_MODE_PHYS)
-      pin = physToGpio [pin] ;
-    else if (wiringPiMode != WPI_MODE_GPIO)
-      return ;
-
-    softPwmStop  (origPin) ;
-    softToneStop (origPin) ;
-
-    fSel    = gpioToGPFSEL [pin] ;
-    shift   = gpioToShift  [pin] ;
-
-    /**/ if (mode == INPUT)
-      *(gpio + fSel) = (*(gpio + fSel) & ~(7 << shift)) ; // Sets bits to zero = input
-    else if (mode == OUTPUT)
-      *(gpio + fSel) = (*(gpio + fSel) & ~(7 << shift)) | (1 << shift) ;
-    else if (mode == SOFT_PWM_OUTPUT)
-      softPwmCreate (origPin, 0, 100) ;
-    else if (mode == SOFT_TONE_OUTPUT)
-      softToneCreate (origPin) ;
-    else if (mode == PWM_TONE_OUTPUT)
+    if ((pin & PI_GPIO_MASK) == 0)		// On-board pin
     {
-      pinMode (origPin, PWM_OUTPUT) ;	// Call myself to enable PWM mode
-      pwmSetMode (PWM_MODE_MS) ;
+        /**/ if (wiringPiMode == WPI_MODE_PINS)
+            pin = pinToGpio [pin] ;
+        else if (wiringPiMode == WPI_MODE_PHYS)
+            pin = physToGpio [pin] ;
+        else if (wiringPiMode != WPI_MODE_GPIO)
+            return ;
+
+        softPwmStop  (origPin) ;
+        softToneStop (origPin) ;
+
+        if (g_PI_Model == PI_MODEL_FIREFLY_RK3399) 
+        {
+            switch (mode)
+            {
+                case INPUT:
+                    rk3399_gpio_set_gpiomode(pin);
+                    rk3399_gpio_set_direction(pin,INPUT);
+                    break;
+                case OUTPUT:
+                    rk3399_gpio_set_gpiomode(pin);
+                    rk3399_gpio_set_direction(pin,OUTPUT);
+                    break;
+                case SOFT_PWM_OUTPUT:
+                    rk3399_gpio_set_gpiomode(pin);
+                    rk3399_gpio_set_direction(pin,OUTPUT);
+                    softPwmCreate (origPin, 0, 100) ;
+                    break;
+                case SOFT_TONE_OUTPUT:
+                    rk3399_gpio_set_gpiomode(pin);
+                    rk3399_gpio_set_direction(pin,OUTPUT);
+                    softToneCreate (origPin) ;
+                    break;
+                case PWM_OUTPUT:
+                    rk3399_gpio_enable_function(RK_GPIO_PWM);
+                    rk3399_set_pwm_duty(100000000);
+                    rk3399_set_pwm_period(200000000);
+                    rk3399_set_pwm_enable(1);
+                    break;
+                case PWM_TONE_OUTPUT:
+                    rk3399_gpio_enable_function(RK_GPIO_PWM);
+                    rk3399_set_pwm_duty(100000000);
+                    rk3399_set_pwm_period(200000000);
+                    rk3399_set_pwm_enable(1);
+                    break;
+                case GPIO_CLOCK:
+                    wiringPiFailure (WPI_FATAL, "model firefly-rk3399 not support GPIO_CLOCK \n");
+                    break;
+                default:
+                    break;
+            }
+        }
+        else 
+        {
+            fSel    = gpioToGPFSEL [pin] ;
+            shift   = gpioToShift  [pin] ;
+
+            /**/ if (mode == INPUT)
+                *(gpio + fSel) = (*(gpio + fSel) & ~(7 << shift)) ; // Sets bits to zero = input
+            else if (mode == OUTPUT)
+                *(gpio + fSel) = (*(gpio + fSel) & ~(7 << shift)) | (1 << shift) ;
+            else if (mode == SOFT_PWM_OUTPUT)
+                softPwmCreate (origPin, 0, 100) ;
+            else if (mode == SOFT_TONE_OUTPUT)
+                softToneCreate (origPin) ;
+            else if (mode == PWM_TONE_OUTPUT)
+            {
+                pinMode (origPin, PWM_OUTPUT) ;	// Call myself to enable PWM mode
+                pwmSetMode (PWM_MODE_MS) ;
+            }
+            else if (mode == PWM_OUTPUT)
+            {
+                if ((alt = gpioToPwmALT [pin]) == 0)	// Not a hardware capable PWM pin
+                    return ;
+
+                // Set pin to PWM mode
+
+                *(gpio + fSel) = (*(gpio + fSel) & ~(7 << shift)) | (alt << shift) ;
+                delayMicroseconds (110) ;		// See comments in pwmSetClockWPi
+
+                pwmSetMode  (PWM_MODE_BAL) ;	// Pi default mode
+                pwmSetRange (1024) ;		// Default range of 1024
+                pwmSetClock (32) ;		// 19.2 / 32 = 600KHz - Also starts the PWM
+            }
+            else if (mode == GPIO_CLOCK)
+            {
+                if ((alt = gpioToGpClkALT0 [pin]) == 0)	// Not a GPIO_CLOCK pin
+                    return ;
+
+                // Set pin to GPIO_CLOCK mode and set the clock frequency to 100KHz
+
+                *(gpio + fSel) = (*(gpio + fSel) & ~(7 << shift)) | (alt << shift) ;
+                delayMicroseconds (110) ;
+                gpioClockSet      (pin, 100000) ;
+            }
+        }
     }
-    else if (mode == PWM_OUTPUT)
+    else
     {
-      if ((alt = gpioToPwmALT [pin]) == 0)	// Not a hardware capable PWM pin
-	return ;
-
-// Set pin to PWM mode
-
-      *(gpio + fSel) = (*(gpio + fSel) & ~(7 << shift)) | (alt << shift) ;
-      delayMicroseconds (110) ;		// See comments in pwmSetClockWPi
-
-      pwmSetMode  (PWM_MODE_BAL) ;	// Pi default mode
-      pwmSetRange (1024) ;		// Default range of 1024
-      pwmSetClock (32) ;		// 19.2 / 32 = 600KHz - Also starts the PWM
+        if ((node = wiringPiFindNode (pin)) != NULL)
+            node->pinMode (node, pin, mode) ;
+        return ;
     }
-    else if (mode == GPIO_CLOCK)
-    {
-      if ((alt = gpioToGpClkALT0 [pin]) == 0)	// Not a GPIO_CLOCK pin
-	return ;
-
-// Set pin to GPIO_CLOCK mode and set the clock frequency to 100KHz
-
-      *(gpio + fSel) = (*(gpio + fSel) & ~(7 << shift)) | (alt << shift) ;
-      delayMicroseconds (110) ;
-      gpioClockSet      (pin, 100000) ;
-    }
-  }
-  else
-  {
-    if ((node = wiringPiFindNode (pin)) != NULL)
-      node->pinMode (node, pin, mode) ;
-    return ;
-  }
 }
 
 
@@ -1423,29 +1528,36 @@ void pinMode (int pin, int mode)
 
 void pullUpDnControl (int pin, int pud)
 {
-  struct wiringPiNodeStruct *node = wiringPiNodes ;
+    struct wiringPiNodeStruct *node = wiringPiNodes ;
 
-  if ((pin & PI_GPIO_MASK) == 0)		// On-Board Pin
-  {
-    /**/ if (wiringPiMode == WPI_MODE_PINS)
-      pin = pinToGpio [pin] ;
-    else if (wiringPiMode == WPI_MODE_PHYS)
-      pin = physToGpio [pin] ;
-    else if (wiringPiMode != WPI_MODE_GPIO)
-      return ;
+    if ((pin & PI_GPIO_MASK) == 0)		// On-Board Pin
+    {
+        /**/ if (wiringPiMode == WPI_MODE_PINS)
+            pin = pinToGpio [pin] ;
+        else if (wiringPiMode == WPI_MODE_PHYS)
+            pin = physToGpio [pin] ;
+        else if (wiringPiMode != WPI_MODE_GPIO)
+            return ;
 
-    *(gpio + GPPUD)              = pud & 3 ;		delayMicroseconds (5) ;
-    *(gpio + gpioToPUDCLK [pin]) = 1 << (pin & 31) ;	delayMicroseconds (5) ;
-    
-    *(gpio + GPPUD)              = 0 ;			delayMicroseconds (5) ;
-    *(gpio + gpioToPUDCLK [pin]) = 0 ;			delayMicroseconds (5) ;
-  }
-  else						// Extension module
-  {
-    if ((node = wiringPiFindNode (pin)) != NULL)
-      node->pullUpDnControl (node, pin, pud) ;
-    return ;
-  }
+        if (g_PI_Model == PI_MODEL_FIREFLY_RK3399)
+        {
+            rk3399_pullUpDnControl(pin, pud);
+        }
+        else 
+        {
+            *(gpio + GPPUD)              = pud & 3 ;		delayMicroseconds (5) ;
+            *(gpio + gpioToPUDCLK [pin]) = 1 << (pin & 31) ;	delayMicroseconds (5) ;
+
+            *(gpio + GPPUD)              = 0 ;			delayMicroseconds (5) ;
+            *(gpio + gpioToPUDCLK [pin]) = 0 ;			delayMicroseconds (5) ;
+        }
+    }
+    else						// Extension module
+    {
+        if ((node = wiringPiFindNode (pin)) != NULL)
+            node->pullUpDnControl (node, pin, pud) ;
+        return ;
+    }
 }
 
 
@@ -1457,38 +1569,43 @@ void pullUpDnControl (int pin, int pud)
 
 int digitalRead (int pin)
 {
-  char c ;
-  struct wiringPiNodeStruct *node = wiringPiNodes ;
+    char c ;
+    struct wiringPiNodeStruct *node = wiringPiNodes ;
 
-  if ((pin & PI_GPIO_MASK) == 0)		// On-Board Pin
-  {
-    /**/ if (wiringPiMode == WPI_MODE_GPIO_SYS)	// Sys mode
+    if ((pin & PI_GPIO_MASK) == 0)		// On-Board Pin
     {
-      if (sysFds [pin] == -1)
-	return LOW ;
+        /**/ if (wiringPiMode == WPI_MODE_GPIO_SYS)	// Sys mode
+        {
+            if (sysFds [pin] == -1)
+                return LOW ;
 
-      lseek  (sysFds [pin], 0L, SEEK_SET) ;
-      read   (sysFds [pin], &c, 1) ;
-      return (c == '0') ? LOW : HIGH ;
+            lseek  (sysFds [pin], 0L, SEEK_SET) ;
+            read   (sysFds [pin], &c, 1) ;
+            return (c == '0') ? LOW : HIGH ;
+        }
+        else if (wiringPiMode == WPI_MODE_PINS)
+            pin = pinToGpio [pin] ;
+        else if (wiringPiMode == WPI_MODE_PHYS)
+            pin = physToGpio [pin] ;
+        else if (wiringPiMode != WPI_MODE_GPIO)
+            return LOW ;
+
+        if(g_PI_Model == PI_MODEL_FIREFLY_RK3399)
+        {
+            return rk3399_digitalRead(pin);
+        }
+
+        if ((*(gpio + gpioToGPLEV [pin]) & (1 << (pin & 31))) != 0)
+            return HIGH ;
+        else
+            return LOW ;
     }
-    else if (wiringPiMode == WPI_MODE_PINS)
-      pin = pinToGpio [pin] ;
-    else if (wiringPiMode == WPI_MODE_PHYS)
-      pin = physToGpio [pin] ;
-    else if (wiringPiMode != WPI_MODE_GPIO)
-      return LOW ;
-
-    if ((*(gpio + gpioToGPLEV [pin]) & (1 << (pin & 31))) != 0)
-      return HIGH ;
     else
-      return LOW ;
-  }
-  else
-  {
-    if ((node = wiringPiFindNode (pin)) == NULL)
-      return LOW ;
-    return node->digitalRead (node, pin) ;
-  }
+    {
+        if ((node = wiringPiFindNode (pin)) == NULL)
+            return LOW ;
+        return node->digitalRead (node, pin) ;
+    }
 }
 
 
@@ -1500,38 +1617,41 @@ int digitalRead (int pin)
 
 void digitalWrite (int pin, int value)
 {
-  struct wiringPiNodeStruct *node = wiringPiNodes ;
+    struct wiringPiNodeStruct *node = wiringPiNodes ;
 
-  if ((pin & PI_GPIO_MASK) == 0)		// On-Board Pin
-  {
-    /**/ if (wiringPiMode == WPI_MODE_GPIO_SYS)	// Sys mode
+    if ((pin & PI_GPIO_MASK) == 0)		// On-Board Pin
     {
-      if (sysFds [pin] != -1)
-      {
-	if (value == LOW)
-	  write (sysFds [pin], "0\n", 2) ;
-	else
-	  write (sysFds [pin], "1\n", 2) ;
-      }
-      return ;
-    }
-    else if (wiringPiMode == WPI_MODE_PINS)
-      pin = pinToGpio [pin] ;
-    else if (wiringPiMode == WPI_MODE_PHYS)
-      pin = physToGpio [pin] ;
-    else if (wiringPiMode != WPI_MODE_GPIO)
-      return ;
+        /**/ if (wiringPiMode == WPI_MODE_GPIO_SYS)	// Sys mode
+        {
+            if (sysFds [pin] != -1)
+            {
+                if (value == LOW)
+                    write (sysFds [pin], "0\n", 2) ;
+                else
+                    write (sysFds [pin], "1\n", 2) ;
+            }
+            return ;
+        }
+        else if (wiringPiMode == WPI_MODE_PINS)
+            pin = pinToGpio [pin] ;
+        else if (wiringPiMode == WPI_MODE_PHYS)
+            pin = physToGpio [pin] ;
+        else if (wiringPiMode != WPI_MODE_GPIO)
+            return ;
 
-    if (value == LOW)
-      *(gpio + gpioToGPCLR [pin]) = 1 << (pin & 31) ;
+        if (g_PI_Model == PI_MODEL_FIREFLY_RK3399)
+            return rk3399_digitalWrite(pin, value);
+
+        if (value == LOW)
+            *(gpio + gpioToGPCLR [pin]) = 1 << (pin & 31) ;
+        else
+            *(gpio + gpioToGPSET [pin]) = 1 << (pin & 31) ;
+    }
     else
-      *(gpio + gpioToGPSET [pin]) = 1 << (pin & 31) ;
-  }
-  else
-  {
-    if ((node = wiringPiFindNode (pin)) != NULL)
-      node->digitalWrite (node, pin, value) ;
-  }
+    {
+        if ((node = wiringPiFindNode (pin)) != NULL)
+            node->digitalWrite (node, pin, value) ;
+    }
 }
 
 
@@ -1540,27 +1660,33 @@ void digitalWrite (int pin, int value)
  *	Set an output PWM value
  *********************************************************************************
  */
-
 void pwmWrite (int pin, int value)
 {
-  struct wiringPiNodeStruct *node = wiringPiNodes ;
+    struct wiringPiNodeStruct *node = wiringPiNodes ;
 
-  if ((pin & PI_GPIO_MASK) == 0)		// On-Board Pin
-  {
-    /**/ if (wiringPiMode == WPI_MODE_PINS)
-      pin = pinToGpio [pin] ;
-    else if (wiringPiMode == WPI_MODE_PHYS)
-      pin = physToGpio [pin] ;
-    else if (wiringPiMode != WPI_MODE_GPIO)
-      return ;
+    if ((pin & PI_GPIO_MASK) == 0)		// On-Board Pin
+    {
+        /**/ if (wiringPiMode == WPI_MODE_PINS)
+            pin = pinToGpio [pin] ;
+        else if (wiringPiMode == WPI_MODE_PHYS)
+            pin = physToGpio [pin] ;
+        else if (wiringPiMode != WPI_MODE_GPIO)
+            return ;
 
-    *(pwm + gpioToPwmPort [pin]) = value ;
-  }
-  else
-  {
-    if ((node = wiringPiFindNode (pin)) != NULL)
-      node->pwmWrite (node, pin, value) ;
-  }
+        if (g_PI_Model == PI_MODEL_FIREFLY_RK3399)
+        {
+            unsigned int duty = value *10000 / 6;
+            rk3399_set_pwm_duty(duty);
+            return ;
+        }
+
+        *(pwm + gpioToPwmPort [pin]) = value ;
+    }
+    else
+    {
+        if ((node = wiringPiFindNode (pin)) != NULL)
+            node->pwmWrite (node, pin, value) ;
+    }
 }
 
 
@@ -1574,12 +1700,12 @@ void pwmWrite (int pin, int value)
 
 int analogRead (int pin)
 {
-  struct wiringPiNodeStruct *node = wiringPiNodes ;
+    struct wiringPiNodeStruct *node = wiringPiNodes ;
 
-  if ((node = wiringPiFindNode (pin)) == NULL)
-    return 0 ;
-  else
-    return node->analogRead (node, pin) ;
+    if ((node = wiringPiFindNode (pin)) == NULL)
+        return 0 ;
+    else
+        return node->analogRead (node, pin) ;
 }
 
 
@@ -1593,12 +1719,12 @@ int analogRead (int pin)
 
 void analogWrite (int pin, int value)
 {
-  struct wiringPiNodeStruct *node = wiringPiNodes ;
+    struct wiringPiNodeStruct *node = wiringPiNodes ;
 
-  if ((node = wiringPiFindNode (pin)) == NULL)
-    return ;
+    if ((node = wiringPiFindNode (pin)) == NULL)
+        return ;
 
-  node->analogWrite (node, pin, value) ;
+    node->analogWrite (node, pin, value) ;
 }
 
 
@@ -1608,19 +1734,37 @@ void analogWrite (int pin, int value)
  *      Output the given frequency on the Pi's PWM pin
  *********************************************************************************
  */
-
 void pwmToneWrite (int pin, int freq)
 {
-  int range ;
+    int range ;
 
-  if (freq == 0)
-    pwmWrite (pin, 0) ;             // Off
-  else
-  {
-    range = 600000 / freq ;
-    pwmSetRange (range) ;
-    pwmWrite    (pin, freq / 2) ;
-  }
+    if (g_PI_Model == PI_MODEL_FIREFLY_RK3399)
+    {
+        unsigned int period;
+        if (freq == 0) 
+        {
+            period = 0;
+            rk3399_set_pwm_enable(0);
+        }
+        else 
+        {
+            period = 10^9 / freq;
+            rk3399_set_pwm_period(period);
+            rk3399_set_pwm_duty(period / 2);
+            rk3399_set_pwm_enable(1);
+        }
+    }
+    else
+    {
+        if (freq == 0)
+            pwmWrite (pin, 0) ;             // Off
+        else
+        {
+            range = 600000 / freq ;
+            pwmSetRange (range) ;
+            pwmWrite    (pin, freq / 2) ;
+        }
+    }
 }
 
 
@@ -1643,61 +1787,81 @@ void pwmToneWrite (int pin, int freq)
 
 void digitalWriteByte (const int value)
 {
-  uint32_t pinSet = 0 ;
-  uint32_t pinClr = 0 ;
-  int mask = 1 ;
-  int pin ;
+    uint32_t pinSet = 0 ;
+    uint32_t pinClr = 0 ;
+    int mask = 1 ;
+    int pin ;
 
-  /**/ if (wiringPiMode == WPI_MODE_GPIO_SYS)
-  {
-    for (pin = 0 ; pin < 8 ; ++pin)
+    if (g_PI_Model == PI_MODEL_FIREFLY_RK3399)
     {
-      digitalWrite (pinToGpio [pin], value & mask) ;
-      mask <<= 1 ;
-    }
-    return ;
-  }
-  else
-  {
-    for (pin = 0 ; pin < 8 ; ++pin)
-    {
-      if ((value & mask) == 0)
-	pinClr |= (1 << pinToGpio [pin]) ;
-      else
-	pinSet |= (1 << pinToGpio [pin]) ;
-
-      mask <<= 1 ;
+        for (pin = 0 ; pin < 8 ; ++pin)
+        {
+            digitalWrite (pinToGpio [pin], value & mask) ;
+            mask <<= 1 ;
+        }
+        return ;
     }
 
-    *(gpio + gpioToGPCLR [0]) = pinClr ;
-    *(gpio + gpioToGPSET [0]) = pinSet ;
-  }
+    /**/ if (wiringPiMode == WPI_MODE_GPIO_SYS)
+    {
+        for (pin = 0 ; pin < 8 ; ++pin)
+        {
+            digitalWrite (pinToGpio [pin], value & mask) ;
+            mask <<= 1 ;
+        }
+        return ;
+    }
+    else
+    {
+        for (pin = 0 ; pin < 8 ; ++pin)
+        {
+            if ((value & mask) == 0)
+                pinClr |= (1 << pinToGpio [pin]) ;
+            else
+                pinSet |= (1 << pinToGpio [pin]) ;
+
+            mask <<= 1 ;
+        }
+
+        *(gpio + gpioToGPCLR [0]) = pinClr ;
+        *(gpio + gpioToGPSET [0]) = pinSet ;
+    }
 }
 
 unsigned int digitalReadByte (void)
 {
-  int pin, x ;
-  uint32_t raw ;
-  uint32_t data = 0 ;
+    int pin, x ;
+    uint32_t raw ;
+    uint32_t data = 0 ;
 
-  /**/ if (wiringPiMode == WPI_MODE_GPIO_SYS)
-  {
-    for (pin = 0 ; pin < 8 ; ++pin)
+    if (g_PI_Model == PI_MODEL_FIREFLY_RK3399)
     {
-      x = digitalRead (pinToGpio [pin]) ;
-      data = (data << 1) | x ;
+        for (pin = 0 ; pin < 8 ; ++pin)
+        {
+            x = digitalRead (pinToGpio [pin]) ;
+            data = (data << 1) | x ;
+        }
+        return data;
     }
-  }
-  else 
-  {
-    raw = *(gpio + gpioToGPLEV [0]) ; // First bank for these pins
-    for (pin = 0 ; pin < 8 ; ++pin)
+
+    /**/ if (wiringPiMode == WPI_MODE_GPIO_SYS)
     {
-      x = pinToGpio [pin] ;
-      data = (data << 1) | (((raw & (1 << x)) == 0) ? 0 : 1) ;
+        for (pin = 0 ; pin < 8 ; ++pin)
+        {
+            x = digitalRead (pinToGpio [pin]) ;
+            data = (data << 1) | x ;
+        }
     }
-  }
-  return data ;
+    else 
+    {
+        raw = *(gpio + gpioToGPLEV [0]) ; // First bank for these pins
+        for (pin = 0 ; pin < 8 ; ++pin)
+        {
+            x = pinToGpio [pin] ;
+            data = (data << 1) | (((raw & (1 << x)) == 0) ? 0 : 1) ;
+        }
+    }
+    return data ;
 }
 
 
@@ -1713,42 +1877,48 @@ unsigned int digitalReadByte (void)
 
 void digitalWriteByte2 (const int value)
 {
-  register int mask = 1 ;
-  register int pin ;
+    register int mask = 1 ;
+    register int pin ;
 
-  /**/ if (wiringPiMode == WPI_MODE_GPIO_SYS)
-  {
-    for (pin = 20 ; pin < 28 ; ++pin)
+    if (g_PI_Model == PI_MODEL_FIREFLY_RK3399)
+        wiringPiFailure (WPI_FATAL, "model firefly-rk3399 not support function %s\n",__FUNCTION__) ;
+
+    /**/ if (wiringPiMode == WPI_MODE_GPIO_SYS)
     {
-      digitalWrite (pin, value & mask) ;
-      mask <<= 1 ;
+        for (pin = 20 ; pin < 28 ; ++pin)
+        {
+            digitalWrite (pin, value & mask) ;
+            mask <<= 1 ;
+        }
+        return ;
     }
-    return ;
-  }
-  else
-  {
-    *(gpio + gpioToGPCLR [0]) = (~value & 0xFF) << 20 ; // 0x0FF00000; ILJ > CHANGE: Old causes glitch
-    *(gpio + gpioToGPSET [0]) = ( value & 0xFF) << 20 ;
-  }
+    else
+    {
+        *(gpio + gpioToGPCLR [0]) = (~value & 0xFF) << 20 ; // 0x0FF00000; ILJ > CHANGE: Old causes glitch
+        *(gpio + gpioToGPSET [0]) = ( value & 0xFF) << 20 ;
+    }
 }
 
 unsigned int digitalReadByte2 (void)
 {
-  int pin, x ;
-  uint32_t data = 0 ;
+    int pin, x ;
+    uint32_t data = 0 ;
 
-  /**/ if (wiringPiMode == WPI_MODE_GPIO_SYS)
-  {
-    for (pin = 20 ; pin < 28 ; ++pin)
+    if (g_PI_Model == PI_MODEL_FIREFLY_RK3399)
+        return wiringPiFailure (WPI_FATAL, "model firefly-rk3399 not support function %s\n",__FUNCTION__) ;
+
+    /**/ if (wiringPiMode == WPI_MODE_GPIO_SYS)
     {
-      x = digitalRead (pin) ;
-      data = (data << 1) | x ;
+        for (pin = 20 ; pin < 28 ; ++pin)
+        {
+            x = digitalRead (pin) ;
+            data = (data << 1) | x ;
+        }
     }
-  }
-  else 
-    data = ((*(gpio + gpioToGPLEV [0])) >> 20) & 0xFF ; // First bank for these pins
+    else 
+        data = ((*(gpio + gpioToGPLEV [0])) >> 20) & 0xFF ; // First bank for these pins
 
-  return data ;
+    return data ;
 }
 
 
@@ -1764,37 +1934,37 @@ unsigned int digitalReadByte2 (void)
 
 int waitForInterrupt (int pin, int mS)
 {
-  int fd, x ;
-  uint8_t c ;
-  struct pollfd polls ;
+    int fd, x ;
+    uint8_t c ;
+    struct pollfd polls ;
 
-  /**/ if (wiringPiMode == WPI_MODE_PINS)
-    pin = pinToGpio [pin] ;
-  else if (wiringPiMode == WPI_MODE_PHYS)
-    pin = physToGpio [pin] ;
+    /**/ if (wiringPiMode == WPI_MODE_PINS)
+        pin = pinToGpio [pin] ;
+    else if (wiringPiMode == WPI_MODE_PHYS)
+        pin = physToGpio [pin] ;
 
-  if ((fd = sysFds [pin]) == -1)
-    return -2 ;
+    if ((fd = sysFds [pin]) == -1)
+        return -2 ;
 
-// Setup poll structure
+    // Setup poll structure
 
-  polls.fd     = fd ;
-  polls.events = POLLPRI | POLLERR ;
+    polls.fd     = fd ;
+    polls.events = POLLPRI | POLLERR ;
 
-// Wait for it ...
+    // Wait for it ...
 
-  x = poll (&polls, 1, mS) ;
+    x = poll (&polls, 1, mS) ;
 
-// If no error, do a dummy read to clear the interrupt
-//	A one character read appars to be enough.
+    // If no error, do a dummy read to clear the interrupt
+    //	A one character read appars to be enough.
 
-  if (x > 0)
-  {
-    lseek (fd, 0, SEEK_SET) ;	// Rewind
-    (void)read (fd, &c, 1) ;	// Read & clear
-  }
+    if (x > 0)
+    {
+        lseek (fd, 0, SEEK_SET) ;	// Rewind
+        (void)read (fd, &c, 1) ;	// Read & clear
+    }
 
-  return x ;
+    return x ;
 }
 
 
@@ -1808,18 +1978,18 @@ int waitForInterrupt (int pin, int mS)
 
 static void *interruptHandler (UNU void *arg)
 {
-  int myPin ;
+    int myPin ;
 
-  (void)piHiPri (55) ;	// Only effective if we run as root
+    (void)piHiPri (55) ;	// Only effective if we run as root
 
-  myPin   = pinPass ;
-  pinPass = -1 ;
+    myPin   = pinPass ;
+    pinPass = -1 ;
 
-  for (;;)
-    if (waitForInterrupt (myPin, -1) > 0)
-      isrFunctions [myPin] () ;
+    for (;;)
+        if (waitForInterrupt (myPin, -1) > 0)
+            isrFunctions [myPin] () ;
 
-  return NULL ;
+    return NULL ;
 }
 
 
@@ -1833,92 +2003,92 @@ static void *interruptHandler (UNU void *arg)
 
 int wiringPiISR (int pin, int mode, void (*function)(void))
 {
-  pthread_t threadId ;
-  const char *modeS ;
-  char fName   [64] ;
-  char  pinS [8] ;
-  pid_t pid ;
-  int   count, i ;
-  char  c ;
-  int   bcmGpioPin ;
+    pthread_t threadId ;
+    const char *modeS ;
+    char fName   [64] ;
+    char  pinS [8] ;
+    pid_t pid ;
+    int   count, i ;
+    char  c ;
+    int   bcmGpioPin ;
 
-  if ((pin < 0) || (pin > 63))
-    return wiringPiFailure (WPI_FATAL, "wiringPiISR: pin must be 0-63 (%d)\n", pin) ;
+    if ((pin < 0) || (pin > 63))
+        return wiringPiFailure (WPI_FATAL, "wiringPiISR: pin must be 0-63 (%d)\n", pin) ;
 
-  /**/ if (wiringPiMode == WPI_MODE_UNINITIALISED)
-    return wiringPiFailure (WPI_FATAL, "wiringPiISR: wiringPi has not been initialised. Unable to continue.\n") ;
-  else if (wiringPiMode == WPI_MODE_PINS)
-    bcmGpioPin = pinToGpio [pin] ;
-  else if (wiringPiMode == WPI_MODE_PHYS)
-    bcmGpioPin = physToGpio [pin] ;
-  else
-    bcmGpioPin = pin ;
-
-// Now export the pin and set the right edge
-//	We're going to use the gpio program to do this, so it assumes
-//	a full installation of wiringPi. It's a bit 'clunky', but it
-//	is a way that will work when we're running in "Sys" mode, as
-//	a non-root user. (without sudo)
-
-  if (mode != INT_EDGE_SETUP)
-  {
-    /**/ if (mode == INT_EDGE_FALLING)
-      modeS = "falling" ;
-    else if (mode == INT_EDGE_RISING)
-      modeS = "rising" ;
+    /**/ if (wiringPiMode == WPI_MODE_UNINITIALISED)
+        return wiringPiFailure (WPI_FATAL, "wiringPiISR: wiringPi has not been initialised. Unable to continue.\n") ;
+    else if (wiringPiMode == WPI_MODE_PINS)
+        bcmGpioPin = pinToGpio [pin] ;
+    else if (wiringPiMode == WPI_MODE_PHYS)
+        bcmGpioPin = physToGpio [pin] ;
     else
-      modeS = "both" ;
+        bcmGpioPin = pin ;
 
-    sprintf (pinS, "%d", bcmGpioPin) ;
+    // Now export the pin and set the right edge
+    //	We're going to use the gpio program to do this, so it assumes
+    //	a full installation of wiringPi. It's a bit 'clunky', but it
+    //	is a way that will work when we're running in "Sys" mode, as
+    //	a non-root user. (without sudo)
 
-    if ((pid = fork ()) < 0)	// Fail
-      return wiringPiFailure (WPI_FATAL, "wiringPiISR: fork failed: %s\n", strerror (errno)) ;
-
-    if (pid == 0)	// Child, exec
+    if (mode != INT_EDGE_SETUP)
     {
-      /**/ if (access ("/usr/local/bin/gpio", X_OK) == 0)
-      {
-	execl ("/usr/local/bin/gpio", "gpio", "edge", pinS, modeS, (char *)NULL) ;
-	return wiringPiFailure (WPI_FATAL, "wiringPiISR: execl failed: %s\n", strerror (errno)) ;
-      }
-      else if (access ("/usr/bin/gpio", X_OK) == 0)
-      {
-	execl ("/usr/bin/gpio", "gpio", "edge", pinS, modeS, (char *)NULL) ;
-	return wiringPiFailure (WPI_FATAL, "wiringPiISR: execl failed: %s\n", strerror (errno)) ;
-      }
-      else
-	return wiringPiFailure (WPI_FATAL, "wiringPiISR: Can't find gpio program\n") ;
+        /**/ if (mode == INT_EDGE_FALLING)
+            modeS = "falling" ;
+        else if (mode == INT_EDGE_RISING)
+            modeS = "rising" ;
+        else
+            modeS = "both" ;
+
+        sprintf (pinS, "%d", bcmGpioPin) ;
+
+        if ((pid = fork ()) < 0)	// Fail
+            return wiringPiFailure (WPI_FATAL, "wiringPiISR: fork failed: %s\n", strerror (errno)) ;
+
+        if (pid == 0)	// Child, exec
+        {
+            /**/ if (access ("/usr/local/bin/gpio", X_OK) == 0)
+            {
+                execl ("/usr/local/bin/gpio", "gpio", "edge", pinS, modeS, (char *)NULL) ;
+                return wiringPiFailure (WPI_FATAL, "wiringPiISR: execl failed: %s\n", strerror (errno)) ;
+            }
+            else if (access ("/usr/bin/gpio", X_OK) == 0)
+            {
+                execl ("/usr/bin/gpio", "gpio", "edge", pinS, modeS, (char *)NULL) ;
+                return wiringPiFailure (WPI_FATAL, "wiringPiISR: execl failed: %s\n", strerror (errno)) ;
+            }
+            else
+                return wiringPiFailure (WPI_FATAL, "wiringPiISR: Can't find gpio program\n") ;
+        }
+        else		// Parent, wait
+            wait (NULL) ;
     }
-    else		// Parent, wait
-      wait (NULL) ;
-  }
 
-// Now pre-open the /sys/class node - but it may already be open if
-//	we are in Sys mode...
+    // Now pre-open the /sys/class node - but it may already be open if
+    //	we are in Sys mode...
 
-  if (sysFds [bcmGpioPin] == -1)
-  {
-    sprintf (fName, "/sys/class/gpio/gpio%d/value", bcmGpioPin) ;
-    if ((sysFds [bcmGpioPin] = open (fName, O_RDWR)) < 0)
-      return wiringPiFailure (WPI_FATAL, "wiringPiISR: unable to open %s: %s\n", fName, strerror (errno)) ;
-  }
+    if (sysFds [bcmGpioPin] == -1)
+    {
+        sprintf (fName, "/sys/class/gpio/gpio%d/value", bcmGpioPin) ;
+        if ((sysFds [bcmGpioPin] = open (fName, O_RDWR)) < 0)
+            return wiringPiFailure (WPI_FATAL, "wiringPiISR: unable to open %s: %s\n", fName, strerror (errno)) ;
+    }
 
-// Clear any initial pending interrupt
+    // Clear any initial pending interrupt
 
-  ioctl (sysFds [bcmGpioPin], FIONREAD, &count) ;
-  for (i = 0 ; i < count ; ++i)
-    read (sysFds [bcmGpioPin], &c, 1) ;
+    ioctl (sysFds [bcmGpioPin], FIONREAD, &count) ;
+    for (i = 0 ; i < count ; ++i)
+        read (sysFds [bcmGpioPin], &c, 1) ;
 
-  isrFunctions [pin] = function ;
+    isrFunctions [pin] = function ;
 
-  pthread_mutex_lock (&pinMutex) ;
+    pthread_mutex_lock (&pinMutex) ;
     pinPass = pin ;
     pthread_create (&threadId, NULL, interruptHandler, NULL) ;
     while (pinPass != -1)
-      delay (1) ;
-  pthread_mutex_unlock (&pinMutex) ;
+        delay (1) ;
+    pthread_mutex_unlock (&pinMutex) ;
 
-  return 0 ;
+    return 0 ;
 }
 
 
@@ -1932,17 +2102,17 @@ int wiringPiISR (int pin, int mode, void (*function)(void))
 static void initialiseEpoch (void)
 {
 #ifdef	OLD_WAY
-  struct timeval tv ;
+    struct timeval tv ;
 
-  gettimeofday (&tv, NULL) ;
-  epochMilli = (uint64_t)tv.tv_sec * (uint64_t)1000    + (uint64_t)(tv.tv_usec / 1000) ;
-  epochMicro = (uint64_t)tv.tv_sec * (uint64_t)1000000 + (uint64_t)(tv.tv_usec) ;
+    gettimeofday (&tv, NULL) ;
+    epochMilli = (uint64_t)tv.tv_sec * (uint64_t)1000    + (uint64_t)(tv.tv_usec / 1000) ;
+    epochMicro = (uint64_t)tv.tv_sec * (uint64_t)1000000 + (uint64_t)(tv.tv_usec) ;
 #else
-  struct timespec ts ;
+    struct timespec ts ;
 
-  clock_gettime (CLOCK_MONOTONIC_RAW, &ts) ;
-  epochMilli = (uint64_t)ts.tv_sec * (uint64_t)1000    + (uint64_t)(ts.tv_nsec / 1000000L) ;
-  epochMicro = (uint64_t)ts.tv_sec * (uint64_t)1000000 + (uint64_t)(ts.tv_nsec /    1000L) ;
+    clock_gettime (CLOCK_MONOTONIC_RAW, &ts) ;
+    epochMilli = (uint64_t)ts.tv_sec * (uint64_t)1000    + (uint64_t)(ts.tv_nsec / 1000000L) ;
+    epochMicro = (uint64_t)ts.tv_sec * (uint64_t)1000000 + (uint64_t)(ts.tv_nsec /    1000L) ;
 #endif
 }
 
@@ -1955,12 +2125,12 @@ static void initialiseEpoch (void)
 
 void delay (unsigned int howLong)
 {
-  struct timespec sleeper, dummy ;
+    struct timespec sleeper, dummy ;
 
-  sleeper.tv_sec  = (time_t)(howLong / 1000) ;
-  sleeper.tv_nsec = (long)(howLong % 1000) * 1000000 ;
+    sleeper.tv_sec  = (time_t)(howLong / 1000) ;
+    sleeper.tv_nsec = (long)(howLong % 1000) * 1000000 ;
 
-  nanosleep (&sleeper, &dummy) ;
+    nanosleep (&sleeper, &dummy) ;
 }
 
 
@@ -1984,33 +2154,33 @@ void delay (unsigned int howLong)
 
 void delayMicrosecondsHard (unsigned int howLong)
 {
-  struct timeval tNow, tLong, tEnd ;
+    struct timeval tNow, tLong, tEnd ;
 
-  gettimeofday (&tNow, NULL) ;
-  tLong.tv_sec  = howLong / 1000000 ;
-  tLong.tv_usec = howLong % 1000000 ;
-  timeradd (&tNow, &tLong, &tEnd) ;
-
-  while (timercmp (&tNow, &tEnd, <))
     gettimeofday (&tNow, NULL) ;
+    tLong.tv_sec  = howLong / 1000000 ;
+    tLong.tv_usec = howLong % 1000000 ;
+    timeradd (&tNow, &tLong, &tEnd) ;
+
+    while (timercmp (&tNow, &tEnd, <))
+        gettimeofday (&tNow, NULL) ;
 }
 
 void delayMicroseconds (unsigned int howLong)
 {
-  struct timespec sleeper ;
-  unsigned int uSecs = howLong % 1000000 ;
-  unsigned int wSecs = howLong / 1000000 ;
+    struct timespec sleeper ;
+    unsigned int uSecs = howLong % 1000000 ;
+    unsigned int wSecs = howLong / 1000000 ;
 
-  /**/ if (howLong ==   0)
-    return ;
-  else if (howLong  < 100)
-    delayMicrosecondsHard (howLong) ;
-  else
-  {
-    sleeper.tv_sec  = wSecs ;
-    sleeper.tv_nsec = (long)(uSecs * 1000L) ;
-    nanosleep (&sleeper, NULL) ;
-  }
+    /**/ if (howLong ==   0)
+        return ;
+    else if (howLong  < 100)
+        delayMicrosecondsHard (howLong) ;
+    else
+    {
+        sleeper.tv_sec  = wSecs ;
+        sleeper.tv_nsec = (long)(uSecs * 1000L) ;
+        nanosleep (&sleeper, NULL) ;
+    }
 }
 
 
@@ -2023,22 +2193,22 @@ void delayMicroseconds (unsigned int howLong)
 
 unsigned int millis (void)
 {
-  uint64_t now ;
+    uint64_t now ;
 
 #ifdef	OLD_WAY
-  struct timeval tv ;
+    struct timeval tv ;
 
-  gettimeofday (&tv, NULL) ;
-  now  = (uint64_t)tv.tv_sec * (uint64_t)1000 + (uint64_t)(tv.tv_usec / 1000) ;
+    gettimeofday (&tv, NULL) ;
+    now  = (uint64_t)tv.tv_sec * (uint64_t)1000 + (uint64_t)(tv.tv_usec / 1000) ;
 
 #else
-  struct  timespec ts ;
+    struct  timespec ts ;
 
-  clock_gettime (CLOCK_MONOTONIC_RAW, &ts) ;
-  now  = (uint64_t)ts.tv_sec * (uint64_t)1000 + (uint64_t)(ts.tv_nsec / 1000000L) ;
+    clock_gettime (CLOCK_MONOTONIC_RAW, &ts) ;
+    now  = (uint64_t)ts.tv_sec * (uint64_t)1000 + (uint64_t)(ts.tv_nsec / 1000000L) ;
 #endif
 
-  return (uint32_t)(now - epochMilli) ;
+    return (uint32_t)(now - epochMilli) ;
 }
 
 
@@ -2051,21 +2221,21 @@ unsigned int millis (void)
 
 unsigned int micros (void)
 {
-  uint64_t now ;
+    uint64_t now ;
 #ifdef	OLD_WAY
-  struct timeval tv ;
+    struct timeval tv ;
 
-  gettimeofday (&tv, NULL) ;
-  now  = (uint64_t)tv.tv_sec * (uint64_t)1000000 + (uint64_t)tv.tv_usec ;
+    gettimeofday (&tv, NULL) ;
+    now  = (uint64_t)tv.tv_sec * (uint64_t)1000000 + (uint64_t)tv.tv_usec ;
 #else
-  struct  timespec ts ;
+    struct  timespec ts ;
 
-  clock_gettime (CLOCK_MONOTONIC_RAW, &ts) ;
-  now  = (uint64_t)ts.tv_sec * (uint64_t)1000000 + (uint64_t)(ts.tv_nsec / 1000) ;
+    clock_gettime (CLOCK_MONOTONIC_RAW, &ts) ;
+    now  = (uint64_t)ts.tv_sec * (uint64_t)1000000 + (uint64_t)(ts.tv_nsec / 1000) ;
 #endif
 
 
-  return (uint32_t)(now - epochMicro) ;
+    return (uint32_t)(now - epochMicro) ;
 }
 
 /*
@@ -2076,8 +2246,8 @@ unsigned int micros (void)
 
 void wiringPiVersion (int *major, int *minor)
 {
-  *major = VERSION_MAJOR ;
-  *minor = VERSION_MINOR ;
+    *major = VERSION_MAJOR ;
+    *minor = VERSION_MINOR ;
 }
 
 
@@ -2094,132 +2264,153 @@ void wiringPiVersion (int *major, int *minor)
 
 int wiringPiSetup (void)
 {
-  int   fd ;
-  int   model, rev, mem, maker, overVolted ;
-  static int alreadyDoneThis = FALSE ;
+    int   fd ;
+    int   model, rev, mem, maker, overVolted ;
+    static int alreadyDoneThis = FALSE ;
+    int gpioLayout;
 
-// It's actually a fatal error to call any of the wiringPiSetup routines more than once,
-//	(you run out of file handles!) but I'm fed-up with the useless twats who email
-//	me bleating that there is a bug in my code, so screw-em.
+    // It's actually a fatal error to call any of the wiringPiSetup routines more than once,
+    //	(you run out of file handles!) but I'm fed-up with the useless twats who email
+    //	me bleating that there is a bug in my code, so screw-em.
 
-  if (alreadyDoneThis)
-    return 0 ;
+    if (alreadyDoneThis)
+        return 0 ;
 
-  alreadyDoneThis = TRUE ;
+    alreadyDoneThis = TRUE ;
 
-  if (getenv (ENV_DEBUG) != NULL)
-    wiringPiDebug = TRUE ;
+    if (getenv (ENV_DEBUG) != NULL)
+        wiringPiDebug = TRUE ;
 
-  if (getenv (ENV_CODES) != NULL)
-    wiringPiReturnCodes = TRUE ;
+    if (getenv (ENV_CODES) != NULL)
+        wiringPiReturnCodes = TRUE ;
 
-  if (wiringPiDebug)
-    printf ("wiringPi: wiringPiSetup called\n") ;
+    if (wiringPiDebug)
+        printf ("wiringPi: wiringPiSetup called\n") ;
 
-// Get the board ID information. We're not really using the information here,
-//	but it will give us information like the GPIO layout scheme (2 variants
-//	on the older 26-pin Pi's) and the GPIO peripheral base address.
-//	and if we're running on a compute module, then wiringPi pin numbers
-//	don't really many anything, so force native BCM mode anyway.
+    // Get the board ID information. We're not really using the information here,
+    //	but it will give us information like the GPIO layout scheme (2 variants
+    //	on the older 26-pin Pi's) and the GPIO peripheral base address.
+    //	and if we're running on a compute module, then wiringPi pin numbers
+    //	don't really many anything, so force native BCM mode anyway.
 
-  piBoardId (&model, &rev, &mem, &maker, &overVolted) ;
+    piBoardId (&model, &rev, &mem, &maker, &overVolted) ;
+    g_PI_Model = model;
 
-  if ((model == PI_MODEL_CM) || (model == PI_MODEL_CM3))
-    wiringPiMode = WPI_MODE_GPIO ;
-  else
-    wiringPiMode = WPI_MODE_PINS ;
+    if ((model == PI_MODEL_CM) || (model == PI_MODEL_CM3))
+        wiringPiMode = WPI_MODE_GPIO ;
+    else if (model == PI_MODEL_FIREFLY_RK3399)
+        wiringPiMode = WPI_MODE_PINS ;
+    else
+        wiringPiMode = WPI_MODE_PINS ;
 
-  /**/ if (piGpioLayout () == 1)	// A, B, Rev 1, 1.1
-  {
-     pinToGpio =  pinToGpioR1 ;
-    physToGpio = physToGpioR1 ;
-  }
-  else 					// A2, B2, A+, B+, CM, Pi2, Pi3, Zero
-  {
-     pinToGpio =  pinToGpioR2 ;
-    physToGpio = physToGpioR2 ;
-  }
+    gpioLayout = piGpioLayout();
 
-// ...
+    /**/ if (gpioLayout == 1)	// A, B, Rev 1, 1.1
+    {
+        pinToGpio =  pinToGpioR1 ;
+        physToGpio = physToGpioR1 ;
+    }
+    else if (gpioLayout == GPIO_LAYOUT_FIREFLY_RK3399) 					// A2, B2, A+, B+, CM, Pi2, Pi3, Zero
+    {
+        pinToGpio = pinToGpioFireflyRK3399;
+        physToGpio = physToGpioFireflyRK3399;
+    }
+    else 					// A2, B2, A+, B+, CM, Pi2, Pi3, Zero
+    {
+        pinToGpio =  pinToGpioR2 ;
+        physToGpio = physToGpioR2 ;
+    }
 
-  switch (model)
-  {
-    case PI_MODEL_A:  case PI_MODEL_B:
-    case PI_MODEL_AP: case PI_MODEL_BP:
-    case PI_ALPHA:    case PI_MODEL_CM: case PI_MODEL_ZERO:
-      piGpioBase = GPIO_PERI_BASE_OLD ;
-      break ;
+    // ...
 
-    default:
-      piGpioBase = GPIO_PERI_BASE_NEW ;
-      break ;
-  }
+    switch (model)
+    {
+        case PI_MODEL_A:  case PI_MODEL_B:
+        case PI_MODEL_AP: case PI_MODEL_BP:
+        case PI_ALPHA:    case PI_MODEL_CM: case PI_MODEL_ZERO:
+            piGpioBase = GPIO_PERI_BASE_OLD ;
+            break ;
 
-// Open the master /dev/ memory control device
-// Device strategy: December 2016:
-//	Try /dev/mem. If that fails, then 
-//	try /dev/gpiomem. If that fails then game over.
+        case PI_MODEL_FIREFLY_RK3399:
+            rk3399_initRegMap();
+            break;
 
-  if ((fd = open ("/dev/mem", O_RDWR | O_SYNC | O_CLOEXEC) ) < 0)
-  {
-    if ((fd = open ("/dev/gpiomem", O_RDWR | O_SYNC | O_CLOEXEC) ) < 0)
-      return wiringPiFailure (WPI_ALMOST, "wiringPiSetup: Unable to open /dev/mem or /dev/gpiomem: %s.\n  Try running with sudo?\n", strerror (errno)) ;
-    piGpioBase = 0 ;
-  }
+        default:
+            piGpioBase = GPIO_PERI_BASE_NEW ;
+            break ;
+    }
 
-// Set the offsets into the memory interface.
+    if (model == PI_MODEL_FIREFLY_RK3399) {
+        initialiseEpoch();
+        return 0;
+    }
 
-  GPIO_PADS 	  = piGpioBase + 0x00100000 ;
-  GPIO_CLOCK_BASE = piGpioBase + 0x00101000 ;
-  GPIO_BASE	  = piGpioBase + 0x00200000 ;
-  GPIO_TIMER	  = piGpioBase + 0x0000B000 ;
-  GPIO_PWM	  = piGpioBase + 0x0020C000 ;
 
-// Map the individual hardware components
+    // Open the master /dev/ memory control device
+    // Device strategy: December 2016:
+    //	Try /dev/mem. If that fails, then 
+    //	try /dev/gpiomem. If that fails then game over.
 
-//	GPIO:
+    if ((fd = open ("/dev/mem", O_RDWR | O_SYNC | O_CLOEXEC) ) < 0)
+    {
+        if ((fd = open ("/dev/gpiomem", O_RDWR | O_SYNC | O_CLOEXEC) ) < 0)
+            return wiringPiFailure (WPI_ALMOST, "wiringPiSetup: Unable to open /dev/mem or /dev/gpiomem: %s.\n  Try running with sudo?\n", strerror (errno)) ;
+        piGpioBase = 0 ;
+    }
 
-  gpio = (uint32_t *)mmap(0, BLOCK_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, fd, GPIO_BASE) ;
-  if (gpio == MAP_FAILED)
-    return wiringPiFailure (WPI_ALMOST, "wiringPiSetup: mmap (GPIO) failed: %s\n", strerror (errno)) ;
+    // Set the offsets into the memory interface.
 
-//	PWM
+    GPIO_PADS 	  = piGpioBase + 0x00100000 ;
+    GPIO_CLOCK_BASE = piGpioBase + 0x00101000 ;
+    GPIO_BASE	  = piGpioBase + 0x00200000 ;
+    GPIO_TIMER	  = piGpioBase + 0x0000B000 ;
+    GPIO_PWM	  = piGpioBase + 0x0020C000 ;
 
-  pwm = (uint32_t *)mmap(0, BLOCK_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, fd, GPIO_PWM) ;
-  if (pwm == MAP_FAILED)
-    return wiringPiFailure (WPI_ALMOST, "wiringPiSetup: mmap (PWM) failed: %s\n", strerror (errno)) ;
- 
-//	Clock control (needed for PWM)
+    // Map the individual hardware components
 
-  clk = (uint32_t *)mmap(0, BLOCK_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, fd, GPIO_CLOCK_BASE) ;
-  if (clk == MAP_FAILED)
-    return wiringPiFailure (WPI_ALMOST, "wiringPiSetup: mmap (CLOCK) failed: %s\n", strerror (errno)) ;
- 
-//	The drive pads
+    //	GPIO:
 
-  pads = (uint32_t *)mmap(0, BLOCK_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, fd, GPIO_PADS) ;
-  if (pads == MAP_FAILED)
-    return wiringPiFailure (WPI_ALMOST, "wiringPiSetup: mmap (PADS) failed: %s\n", strerror (errno)) ;
+    gpio = (uint32_t *)mmap(0, BLOCK_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, fd, GPIO_BASE) ;
+    if (gpio == MAP_FAILED)
+        return wiringPiFailure (WPI_ALMOST, "wiringPiSetup: mmap (GPIO) failed: %s\n", strerror (errno)) ;
+
+    //	PWM
+
+    pwm = (uint32_t *)mmap(0, BLOCK_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, fd, GPIO_PWM) ;
+    if (pwm == MAP_FAILED)
+        return wiringPiFailure (WPI_ALMOST, "wiringPiSetup: mmap (PWM) failed: %s\n", strerror (errno)) ;
+
+    //	Clock control (needed for PWM)
+
+    clk = (uint32_t *)mmap(0, BLOCK_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, fd, GPIO_CLOCK_BASE) ;
+    if (clk == MAP_FAILED)
+        return wiringPiFailure (WPI_ALMOST, "wiringPiSetup: mmap (CLOCK) failed: %s\n", strerror (errno)) ;
+
+    //	The drive pads
+
+    pads = (uint32_t *)mmap(0, BLOCK_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, fd, GPIO_PADS) ;
+    if (pads == MAP_FAILED)
+        return wiringPiFailure (WPI_ALMOST, "wiringPiSetup: mmap (PADS) failed: %s\n", strerror (errno)) ;
 
 #ifdef	USE_TIMER
-//	The system timer
+    //	The system timer
 
-  timer = (uint32_t *)mmap(0, BLOCK_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, fd, GPIO_TIMER) ;
-  if (timer == MAP_FAILED)
-    return wiringPiFailure (WPI_ALMOST, "wiringPiSetup: mmap (TIMER) failed: %s\n", strerror (errno)) ;
+    timer = (uint32_t *)mmap(0, BLOCK_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, fd, GPIO_TIMER) ;
+    if (timer == MAP_FAILED)
+        return wiringPiFailure (WPI_ALMOST, "wiringPiSetup: mmap (TIMER) failed: %s\n", strerror (errno)) ;
 
-// Set the timer to free-running, 1MHz.
-//	0xF9 is 249, the timer divide is base clock / (divide+1)
-//	so base clock is 250MHz / 250 = 1MHz.
+    // Set the timer to free-running, 1MHz.
+    //	0xF9 is 249, the timer divide is base clock / (divide+1)
+    //	so base clock is 250MHz / 250 = 1MHz.
 
-  *(timer + TIMER_CONTROL) = 0x0000280 ;
-  *(timer + TIMER_PRE_DIV) = 0x00000F9 ;
-  timerIrqRaw = timer + TIMER_IRQ_RAW ;
+    *(timer + TIMER_CONTROL) = 0x0000280 ;
+    *(timer + TIMER_PRE_DIV) = 0x00000F9 ;
+    timerIrqRaw = timer + TIMER_IRQ_RAW ;
 #endif
 
-  initialiseEpoch () ;
+    initialiseEpoch () ;
 
-  return 0 ;
+    return 0 ;
 }
 
 
@@ -2234,14 +2425,17 @@ int wiringPiSetup (void)
 
 int wiringPiSetupGpio (void)
 {
-  (void)wiringPiSetup () ;
+    (void)wiringPiSetup () ;
 
-  if (wiringPiDebug)
-    printf ("wiringPi: wiringPiSetupGpio called\n") ;
+    if (wiringPiDebug)
+        printf ("wiringPi: wiringPiSetupGpio called\n") ;
 
-  wiringPiMode = WPI_MODE_GPIO ;
+    if (g_PI_Model == PI_MODEL_FIREFLY_RK3399)
+        return wiringPiFailure (WPI_FATAL, "model firefly-rk3399 not support function %s\n",__FUNCTION__) ;
+        
+    wiringPiMode = WPI_MODE_GPIO ;
 
-  return 0 ;
+    return 0 ;
 }
 
 
@@ -2256,14 +2450,14 @@ int wiringPiSetupGpio (void)
 
 int wiringPiSetupPhys (void)
 {
-  (void)wiringPiSetup () ;
+    (void)wiringPiSetup () ;
 
-  if (wiringPiDebug)
-    printf ("wiringPi: wiringPiSetupPhys called\n") ;
+    if (wiringPiDebug)
+        printf ("wiringPi: wiringPiSetupPhys called\n") ;
 
-  wiringPiMode = WPI_MODE_PHYS ;
+    wiringPiMode = WPI_MODE_PHYS ;
 
-  return 0 ;
+    return 0 ;
 }
 
 
@@ -2278,52 +2472,81 @@ int wiringPiSetupPhys (void)
 
 int wiringPiSetupSys (void)
 {
-  int pin ;
-  char fName [128] ;
+    int pin, i;
+    char fName [128] ;
+    int gpioLayout;
 
-  static int alreadyDoneThis = FALSE ;
+    static int alreadyDoneThis = FALSE ;
 
-// It's actually a fatal error to call any of the wiringPiSetup routines more than once,
-//	(you run out of file handles!) but I'm fed-up with the useless twats who email
-//	me bleating that there is a bug in my code, so screw-em.
+    // It's actually a fatal error to call any of the wiringPiSetup routines more than once,
+    //	(you run out of file handles!) but I'm fed-up with the useless twats who email
+    //	me bleating that there is a bug in my code, so screw-em.
 
-  if (alreadyDoneThis)
+    if (alreadyDoneThis)
+        return 0 ;
+
+    alreadyDoneThis = TRUE ;
+
+    if (getenv (ENV_DEBUG) != NULL)
+        wiringPiDebug = TRUE ;
+
+    if (getenv (ENV_CODES) != NULL)
+        wiringPiReturnCodes = TRUE ;
+
+    if (wiringPiDebug)
+        printf ("wiringPi: wiringPiSetupSys called\n") ;
+
+    gpioLayout = piGpioLayout();
+    if (gpioLayout == 1)
+    {
+        pinToGpio =  pinToGpioR1 ;
+        physToGpio = physToGpioR1 ;
+    }
+    else if (gpioLayout == GPIO_LAYOUT_FIREFLY_RK3399)
+    {
+        pinToGpio = pinToGpioFireflyRK3399;
+        physToGpio = physToGpioFireflyRK3399;
+        g_PI_Model = PI_MODEL_FIREFLY_RK3399;
+    }
+    else
+    {
+        pinToGpio =  pinToGpioR2 ;
+        physToGpio = physToGpioR2 ;
+    }
+
+    // Open and scan the directory, looking for exported GPIOs, and pre-open
+    //	the 'value' interface to speed things up for later
+    if (g_PI_Model == PI_MODEL_FIREFLY_RK3399)
+    {
+        int sysGpioExpFd = -1;
+        sysGpioExpFd = open("/sys/class/gpio/export", O_RDWR);
+        if (sysGpioExpFd != -1)
+        {
+            for (i = 0 ; i < 64 ; ++i)
+            {
+                pin = pinToGpioFireflyRK3399[i];
+                if (pin != -1)
+                {
+                    rk3399_export_gpio(sysGpioExpFd,pin);
+                    sprintf (fName, "/sys/class/gpio/gpio%d/value", pin) ;
+                    sysFds [i] = open (fName, O_RDWR) ;
+                }
+            }
+            close(sysGpioExpFd);
+        }
+    }
+    else
+    {
+        for (pin = 0 ; pin < 64 ; ++pin)
+        {
+            sprintf (fName, "/sys/class/gpio/gpio%d/value", pin) ;
+            sysFds [pin] = open (fName, O_RDWR) ;
+        }
+    }
+
+    initialiseEpoch () ;
+
+    wiringPiMode = WPI_MODE_GPIO_SYS ;
+
     return 0 ;
-
-  alreadyDoneThis = TRUE ;
-
-  if (getenv (ENV_DEBUG) != NULL)
-    wiringPiDebug = TRUE ;
-
-  if (getenv (ENV_CODES) != NULL)
-    wiringPiReturnCodes = TRUE ;
-
-  if (wiringPiDebug)
-    printf ("wiringPi: wiringPiSetupSys called\n") ;
-
-  if (piGpioLayout () == 1)
-  {
-     pinToGpio =  pinToGpioR1 ;
-    physToGpio = physToGpioR1 ;
-  }
-  else
-  {
-     pinToGpio =  pinToGpioR2 ;
-    physToGpio = physToGpioR2 ;
-  }
-
-// Open and scan the directory, looking for exported GPIOs, and pre-open
-//	the 'value' interface to speed things up for later
-  
-  for (pin = 0 ; pin < 64 ; ++pin)
-  {
-    sprintf (fName, "/sys/class/gpio/gpio%d/value", pin) ;
-    sysFds [pin] = open (fName, O_RDWR) ;
-  }
-
-  initialiseEpoch () ;
-
-  wiringPiMode = WPI_MODE_GPIO_SYS ;
-
-  return 0 ;
 }

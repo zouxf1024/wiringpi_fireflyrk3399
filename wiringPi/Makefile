@@ -46,6 +46,7 @@ LIBS    = -lm -lpthread -lrt
 ###############################################################################
 
 SRC	=	wiringPi.c						\
+		wiringPi_fireflyrk3399.c			\
 		wiringSerial.c wiringShift.c				\
 		piHiPri.c piThread.c					\
 		wiringPiSPI.c wiringPiI2C.c				\
@@ -140,7 +141,8 @@ depend:
 
 # DO NOT DELETE
 
-wiringPi.o: softPwm.h softTone.h wiringPi.h ../version.h
+wiringPi.o: softPwm.h softTone.h wiringPi.h wiringPi_fireflyrk3399.h ../version.h
+wiringPi_fireflyrk3399.o:   wiringPi_fireflyrk3399.h
 wiringSerial.o: wiringSerial.h
 wiringShift.o: wiringPi.h wiringShift.h
 piHiPri.o: wiringPi.h
